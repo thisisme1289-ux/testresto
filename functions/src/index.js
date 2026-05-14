@@ -10,7 +10,9 @@ const db = admin.firestore();
 const razorpayKeyId = defineSecret('RAZORPAY_KEY_ID');
 const razorpayKeySecret = defineSecret('RAZORPAY_KEY_SECRET');
 
-const ORDER_STATUSES = ['pending', 'accepted', 'preparing', 'ready', 'delivered', 'cancelled'];
+const ORDER_STATUSES = ['pending', 'accepted', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled'];
+const DEFAULT_RESTAURANT_LOCATION = { lat: 25.5066, lng: 81.8676 };
+const DEFAULT_MAX_DELIVERY_KM = 10;
 
 function requireAuth(request) {
   if (!request.auth) throw new HttpsError('unauthenticated', 'Anonymous session required');
@@ -41,6 +43,35 @@ function makeTrackingToken() {
   return crypto.randomBytes(32).toString('base64url');
 }
 
+function distanceKm(from, to) {
+  const toRad = value => value * Math.PI / 180;
+  const earthKm = 6371;
+  const dLat = toRad(to.lat - from.lat);
+  const dLng = toRad(to.lng - from.lng);
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(from.lat)) * Math.cos(toRad(to.lat)) *
+    Math.sin(dLng / 2) ** 2;
+  return earthKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function deliveryFeeForDistance(km) {
+  if (km <= 1) return 10;
+  if (km <= 2) return 20;
+  if (km <= 3) return 25;
+  if (km <= 4) return 30;
+  if (km <= DEFAULT_MAX_DELIVERY_KM) return 35;
+  return null;
+}
+
+function assertLocation(value) {
+  const lat = Number(value?.lat);
+  const lng = Number(value?.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    throw new HttpsError('invalid-argument', 'Current delivery location is required');
+  }
+  return { lat, lng };
+}
+
 async function nextOrderNumber() {
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   const counterRef = db.collection('counters').doc(`orders-${today}`);
@@ -61,6 +92,8 @@ async function getRestaurantSettings() {
     gstPercent: 5,
     deliveryFee: 0,
     prepTimeDefaultMinutes: 30,
+    restaurantLocation: DEFAULT_RESTAURANT_LOCATION,
+    maxDeliveryKm: DEFAULT_MAX_DELIVERY_KM,
     ...(snap.exists ? snap.data() : {})
   };
 }
@@ -99,18 +132,48 @@ async function buildPricedItems(items) {
   return priced;
 }
 
-function calculatePricing(items, settings) {
+function publicOrderPayload(order) {
+  const customer = order.customer || {};
+  return {
+    orderNumber: order.orderNumber,
+    status: order.status,
+    paymentStatus: order.payment?.status || 'unknown',
+    fulfillmentMode: order.fulfillmentMode || 'delivery',
+    customer: {
+      name: customer.name || '',
+      phone: customer.phone || '',
+      address: customer.address || ''
+    },
+    items: (order.items || []).map(item => ({
+      name: item.name,
+      qty: item.qty,
+      price: item.price,
+      imageUrl: item.imageUrl || '',
+      categoryName: item.categoryName || ''
+    })),
+    pricing: order.pricing || null,
+    estimatedPrepMinutes: order.estimatedPrepMinutes || null,
+    estimatedReadyAt: order.estimatedReadyAt ? order.estimatedReadyAt.toDate().toISOString() : null,
+    updatedAt: order.updatedAt ? order.updatedAt.toDate().toISOString() : null,
+    statusHistory: Array.isArray(order.statusHistory) ? order.statusHistory : [],
+    cancellationReason: order.cancellationReason || '',
+    googleReviewUrl: order.googleReviewUrl || ''
+  };
+}
+
+function calculatePricing(items, settings, fulfillmentMode = 'delivery', deliveryQuote = null) {
   const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
   const gstTotal = Math.round(subtotal * (Number(settings.gstPercent || 0) / 100));
   const cgst = Math.round(gstTotal / 2);
   const sgst = gstTotal - cgst;
-  const deliveryFee = Number(settings.deliveryFee || 0);
+  const deliveryFee = fulfillmentMode === 'pickup' ? 0 : Number(deliveryQuote?.fee || 0);
   const discount = 0;
   return {
     subtotal,
     cgst,
     sgst,
     deliveryFee,
+    deliveryDistanceKm: deliveryQuote ? Number(deliveryQuote.distanceKm.toFixed(2)) : null,
     discount,
     total: subtotal + cgst + sgst + deliveryFee - discount
   };
@@ -123,19 +186,34 @@ exports.createRazorpayOrder = onCall({ secrets: [razorpayKeyId, razorpayKeySecre
     throw new HttpsError('failed-precondition', 'Restaurant is not accepting orders right now');
   }
 
+  const fulfillmentMode = request.data.fulfillmentMode === 'pickup' ? 'pickup' : 'delivery';
   const customer = request.data.customer || {};
   const safeCustomer = {
     name: assertString(customer.name, 'name', 1, 100),
     phone: assertString(customer.phone, 'phone', 10, 10),
-    address: assertString(customer.address, 'address', 5, 500),
-    locationUrl: typeof customer.locationUrl === 'string' ? customer.locationUrl.slice(0, 300) : ''
+    address: fulfillmentMode === 'delivery' ? assertString(customer.address, 'address', 5, 500) : '',
+    locationUrl: typeof customer.locationUrl === 'string' ? customer.locationUrl.slice(0, 300) : '',
+    location: null
   };
   if (!/^[6-9]\d{9}$/.test(safeCustomer.phone)) {
     throw new HttpsError('invalid-argument', 'Invalid Indian mobile number');
   }
+  let deliveryQuote = null;
+  if (fulfillmentMode === 'delivery') {
+    safeCustomer.location = assertLocation(customer.location);
+    const origin = settings.restaurantLocation || DEFAULT_RESTAURANT_LOCATION;
+    const distance = distanceKm(origin, safeCustomer.location);
+    const maxDeliveryKm = Number(settings.maxDeliveryKm || DEFAULT_MAX_DELIVERY_KM);
+    if (distance > maxDeliveryKm) {
+      throw new HttpsError('failed-precondition', `Delivery is available only within ${maxDeliveryKm} km`);
+    }
+    const fee = deliveryFeeForDistance(distance);
+    if (fee === null) throw new HttpsError('failed-precondition', 'Delivery is not available for this location');
+    deliveryQuote = { distanceKm: distance, fee };
+  }
 
   const items = await buildPricedItems(request.data.items);
-  const pricing = calculatePricing(items, settings);
+  const pricing = calculatePricing(items, settings, fulfillmentMode, deliveryQuote);
   if (pricing.total < 1) throw new HttpsError('invalid-argument', 'Order total is invalid');
 
   const orderNumber = await nextOrderNumber();
@@ -157,6 +235,7 @@ exports.createRazorpayOrder = onCall({ secrets: [razorpayKeyId, razorpayKeySecre
   await orderRef.set({
     orderNumber,
     customerUid,
+    fulfillmentMode,
     trackingTokenHash: hashToken(trackingToken),
     customer: safeCustomer,
     items,
@@ -172,6 +251,7 @@ exports.createRazorpayOrder = onCall({ secrets: [razorpayKeyId, razorpayKeySecre
       tokenCreatedAt: admin.firestore.FieldValue.serverTimestamp()
     },
     estimatedPrepMinutes: Number(settings.prepTimeDefaultMinutes || 30),
+    googleReviewUrl: settings.googleReviewUrl || '',
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     statusHistory: [{ status: 'payment_pending', at: new Date().toISOString(), by: 'system' }]
@@ -240,6 +320,7 @@ exports.verifyRazorpayPayment = onCall({ secrets: [razorpayKeySecret] }, async r
     orderNumber: order.orderNumber,
     status: 'pending',
     total: order.pricing.total,
+    fulfillmentMode: order.fulfillmentMode || 'delivery',
     trackingUrl: order.tracking.publicUrl
   };
 });
@@ -259,8 +340,16 @@ exports.updateOrderStatus = onCall(async request => {
   };
   if (status === 'accepted') {
     const minutes = Number(request.data.estimatedPrepMinutes || 30);
+    if (!Number.isFinite(minutes) || minutes < 5 || minutes > 180) {
+      throw new HttpsError('invalid-argument', 'Estimated prep time must be between 5 and 180 minutes');
+    }
     patch.estimatedPrepMinutes = minutes;
     patch.estimatedReadyAt = admin.firestore.Timestamp.fromDate(new Date(Date.now() + minutes * 60000));
+  }
+  if (status === 'cancelled') {
+    patch.cancellationReason = typeof request.data.cancellationReason === 'string'
+      ? request.data.cancellationReason.trim().slice(0, 240)
+      : '';
   }
 
   await db.collection('orders').doc(orderId).update(patch);
@@ -276,14 +365,35 @@ exports.resolveTrackingOrder = onCall(async request => {
   if (order.trackingTokenHash !== hashToken(token)) {
     throw new HttpsError('permission-denied', 'Invalid tracking token');
   }
-  return {
-    orderNumber: order.orderNumber,
-    status: order.status,
-    paymentStatus: order.payment?.status || 'unknown',
-    estimatedPrepMinutes: order.estimatedPrepMinutes || null,
-    estimatedReadyAt: order.estimatedReadyAt ? order.estimatedReadyAt.toDate().toISOString() : null,
-    updatedAt: order.updatedAt ? order.updatedAt.toDate().toISOString() : null
-  };
+  return publicOrderPayload(order);
+});
+
+exports.submitOrderFeedback = onCall(async request => {
+  const orderNumber = assertString(request.data.orderNumber, 'orderNumber', 1, 80);
+  const token = assertString(request.data.token, 'token', 20, 200);
+  const rating = Number(request.data.rating);
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+    throw new HttpsError('invalid-argument', 'Rating must be between 1 and 5');
+  }
+  const message = typeof request.data.message === 'string' ? request.data.message.trim().slice(0, 1000) : '';
+
+  const snap = await db.collection('orders').where('orderNumber', '==', orderNumber).limit(1).get();
+  if (snap.empty) throw new HttpsError('not-found', 'Order not found');
+  const orderDoc = snap.docs[0];
+  const order = orderDoc.data();
+  if (order.trackingTokenHash !== hashToken(token)) {
+    throw new HttpsError('permission-denied', 'Invalid tracking token');
+  }
+
+  await db.collection('orderFeedback').doc(orderDoc.id).set({
+    orderId: orderDoc.id,
+    orderNumber,
+    rating,
+    message,
+    fulfillmentMode: order.fulfillmentMode || 'delivery',
+    createdAt: admin.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
+  return { ok: true };
 });
 
 exports.setRestaurantAvailability = onCall(async request => {

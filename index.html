@@ -694,6 +694,7 @@
       <div class="cart-tax-row"><span>Subtotal</span><span id="cSubtotal">&#8377;0</span></div>
       <div class="cart-tax-row"><span>CGST (2.5%)</span><span id="cCgst">&#8377;0</span></div>
       <div class="cart-tax-row"><span>SGST (2.5%)</span><span id="cSgst">&#8377;0</span></div>
+      <div class="cart-tax-row"><span>Delivery charge</span><span id="cDelivery">Share location</span></div>
       <hr class="cart-divider">
       <div class="cart-tot-row">
         <span class="cart-tot-l">Total (incl. GST)</span>
@@ -703,11 +704,19 @@
     </div>
   </div>
   <div class="co-view" id="coView">
-    <div class="co-title">Delivery Details</div>
+    <div class="co-title" id="coTitle">Delivery Details</div>
     <div class="closed-banner" id="coBanner">
       <div class="closed-banner-icon">&#128308;</div>
       <div class="closed-banner-title">We're Currently Closed</div>
       <div class="closed-banner-sub">Online orders are not being accepted right now.<br>Please check back later or call us.</div>
+    </div>
+    <div class="fulfillment-toggle" role="group" aria-label="Order type">
+      <button class="fulfillment-option on" id="deliveryModeBtn" type="button" onclick="setFulfillmentMode('delivery')">
+        <span>Delivery</span><small>Bring it to my address</small>
+      </button>
+      <button class="fulfillment-option" id="pickupModeBtn" type="button" onclick="setFulfillmentMode('pickup')">
+        <span>Pickup</span><small>I will collect it</small>
+      </button>
     </div>
     <div class="field"><label>Your Name</label><input type="text" id="oName" placeholder="Full name" autocomplete="name"></div>
     <div class="field">
@@ -718,11 +727,20 @@
       </div>
       <div id="phoneErr" style="font-size:11px;color:#e53e3e;margin-top:4px;display:none">Please enter a valid Indian mobile number</div>
     </div>
-    <div class="field"><label>Delivery Address</label><textarea id="oAddr" placeholder="House/flat no., street, area, landmark..." autocomplete="street-address"></textarea></div>
+    <div class="field" id="addressField"><label>Delivery Address</label><textarea id="oAddr" placeholder="House/flat no., street, area, landmark..." autocomplete="street-address"></textarea></div>
     <button class="loc-btn" id="locBtn" onclick="shareLocation()">
       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
       <span id="locBtnTxt">Share My Location</span>
     </button>
+    <div class="map-picker" id="mapPicker">
+      <div class="map-frame" id="mapFrame">
+        <div class="map-placeholder">Location map preview</div>
+      </div>
+      <div class="map-actions" id="mapActions">
+        <button class="map-ok" type="button" onclick="confirmSharedLocation()">OK, Use This Location</button>
+        <button class="map-clear" type="button" onclick="clearSharedLocation()">Clear</button>
+      </div>
+    </div>
     <div id="locStatus" style="font-size:11px;color:var(--muted);margin-bottom:12px;display:none"></div>
     <button class="co-btn" id="placeOrderBtn" onclick="placeOrder()">
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>

@@ -55,6 +55,8 @@ async function main() {
     deliveryFee: 0,
     prepTimeDefaultMinutes: 30,
     deliveryTimeDefaultMinutes: 45,
+    restaurantLocation: { lat: 25.5066, lng: 81.8676 },
+    maxDeliveryKm: 10,
     updatedAt: admin.firestore.FieldValue.serverTimestamp()
   }, { merge: true });
 

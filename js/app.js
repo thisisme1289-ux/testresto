@@ -6,6 +6,10 @@ window.addEventListener('scroll', () =>
 
 const CUSTOMER_PROFILE_KEY = 'annamay_customer_profile_v1';
 const TRACKING_LINKS_KEY = 'annamay_tracking_links_v1';
+const RESTAURANT_LOCATION = { lat: 25.5066, lng: 81.8676 };
+const MAX_DELIVERY_KM = 10;
+let fulfillmentMode = 'delivery';
+let estimatedDeliveryFee = 0;
 
 function getSavedCustomerProfile() {
   try { return JSON.parse(localStorage.getItem(CUSTOMER_PROFILE_KEY) || '{}'); }
@@ -24,6 +28,24 @@ function fillSavedCustomerProfile() {
   if (name && profile.name && !name.value) name.value = profile.name;
   if (phone && profile.phone && !phone.value) phone.value = profile.phone;
   if (addr && profile.address && !addr.value) addr.value = profile.address;
+}
+
+function setFulfillmentMode(mode) {
+  fulfillmentMode = mode === 'pickup' ? 'pickup' : 'delivery';
+  document.getElementById('deliveryModeBtn')?.classList.toggle('on', fulfillmentMode === 'delivery');
+  document.getElementById('pickupModeBtn')?.classList.toggle('on', fulfillmentMode === 'pickup');
+  const title = document.getElementById('coTitle');
+  const addressField = document.getElementById('addressField');
+  const locBtn = document.getElementById('locBtn');
+  const locStatus = document.getElementById('locStatus');
+  const mapPicker = document.getElementById('mapPicker');
+  if (title) title.textContent = fulfillmentMode === 'pickup' ? 'Pickup Details' : 'Delivery Details';
+  if (addressField) addressField.style.display = fulfillmentMode === 'pickup' ? 'none' : '';
+  if (locBtn) locBtn.style.display = fulfillmentMode === 'pickup' ? 'none' : 'flex';
+  if (locStatus && fulfillmentMode === 'pickup') locStatus.style.display = 'none';
+  if (mapPicker) mapPicker.style.display = fulfillmentMode === 'pickup' ? 'none' : '';
+  if (fulfillmentMode === 'pickup') estimatedDeliveryFee = 0;
+  refreshCart();
 }
 
 function rememberTrackingLink(order) {
@@ -313,11 +335,32 @@ function addToCart() {
 ═══════════════════════════════════════ */
 function save() { localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart)); }
 
+function distanceKm(from, to) {
+  const toRad = value => value * Math.PI / 180;
+  const earthKm = 6371;
+  const dLat = toRad(to.lat - from.lat);
+  const dLng = toRad(to.lng - from.lng);
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(from.lat)) * Math.cos(toRad(to.lat)) *
+    Math.sin(dLng / 2) ** 2;
+  return earthKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function deliveryFeeForDistance(km) {
+  if (km <= 1) return 10;
+  if (km <= 2) return 20;
+  if (km <= 3) return 25;
+  if (km <= 4) return 30;
+  if (km <= MAX_DELIVERY_KM) return 35;
+  return null;
+}
+
 function refreshCart() {
   const subtotal = cart.reduce((s,c) => s+c.price*c.qty, 0);
   const cgst = Math.round(subtotal * 0.025);
   const sgst = Math.round(subtotal * 0.025);
-  const total = subtotal + cgst + sgst;
+  const deliveryFee = fulfillmentMode === 'delivery' ? estimatedDeliveryFee : 0;
+  const total = subtotal + cgst + sgst + deliveryFee;
   const count = cart.reduce((s,c) => s+c.qty, 0);
 
   /* Float bar */
@@ -343,9 +386,15 @@ function refreshCart() {
   const sub    = document.getElementById('cSubtotal');
   const cgstEl = document.getElementById('cCgst');
   const sgstEl = document.getElementById('cSgst');
+  const deliveryEl = document.getElementById('cDelivery');
   if (sub)    sub.textContent    = '\u20B9' + subtotal;
   if (cgstEl) cgstEl.textContent = '\u20B9' + cgst;
   if (sgstEl) sgstEl.textContent = '\u20B9' + sgst;
+  if (deliveryEl) {
+    deliveryEl.textContent = fulfillmentMode === 'pickup'
+      ? '\u20B90'
+      : (sharedLocationUrl ? '\u20B9' + deliveryFee : 'Share location');
+  }
 
   /* Total */
   const tv = document.getElementById('cTotal');
@@ -408,6 +457,7 @@ function closeCart() {
 function showCo() {
   document.getElementById('cItemsV').style.display = 'none';
   document.getElementById('coView').classList.add('on');
+  setFulfillmentMode(fulfillmentMode);
 }
 function backCart() {
   document.getElementById('cItemsV').style.display = 'flex';
@@ -437,38 +487,120 @@ function validatePhone(input) {
    LOCATION SHARING
 ═══════════════════════════════════════ */
 let sharedLocationUrl = '';
+let pendingLocationUrl = '';
+let sharedLocation = null;
+let pendingLocation = null;
 let _orderInProgress  = false; /* rate-limit guard — prevents double submission */
+
+function setMapPreview(lat, lng) {
+  const mapPicker = document.getElementById('mapPicker');
+  const mapFrame = document.getElementById('mapFrame');
+  if (!mapPicker || !mapFrame) return;
+  const point = { lat: Number(lat), lng: Number(lng) };
+  const km = distanceKm(RESTAURANT_LOCATION, point);
+  const fee = deliveryFeeForDistance(km);
+  pendingLocation = { ...point, distanceKm: km, deliveryFee: fee };
+  pendingLocationUrl = `https://maps.google.com/?q=${point.lat},${point.lng}`;
+  mapPicker.classList.add('on', 'expanded', 'ready');
+  mapFrame.innerHTML = `<iframe title="Selected delivery location" loading="lazy" src="https://maps.google.com/maps?q=${point.lat},${point.lng}&z=17&output=embed"></iframe>`;
+}
 
 function shareLocation() {
   const btn    = document.getElementById('locBtn');
   const txt    = document.getElementById('locBtnTxt');
   const status = document.getElementById('locStatus');
+  const mapPicker = document.getElementById('mapPicker');
   if (!navigator.geolocation) {
     btn.classList.add('err');
     txt.textContent = 'Location not supported';
     return;
   }
-  txt.textContent = 'Getting location...';
+  estimatedDeliveryFee = 0;
+  sharedLocation = null;
+  sharedLocationUrl = '';
+  refreshCart();
+  txt.textContent = 'Allow location access...';
   btn.classList.remove('got','err');
+  if (mapPicker) mapPicker.classList.add('on', 'expanded');
+  if (status) {
+    status.style.display = 'block';
+    status.textContent = 'Please allow location permission in your browser.';
+  }
   navigator.geolocation.getCurrentPosition(
     pos => {
       const lat = pos.coords.latitude, lng = pos.coords.longitude;
-      sharedLocationUrl = 'https://maps.google.com/?q=' + lat + ',' + lng;
-      txt.textContent = 'Location captured!';
-      btn.classList.add('got');
+      setMapPreview(lat.toFixed(6), lng.toFixed(6));
+      txt.textContent = 'Location found';
       status.style.display = 'block';
-      status.textContent = 'Lat: ' + lat.toFixed(5) + ', Lng: ' + lng.toFixed(5);
-      toast('Location captured!');
+      if (pendingLocation.deliveryFee === null) {
+        status.textContent = `This location is ${pendingLocation.distanceKm.toFixed(1)} km away. Delivery is available only within ${MAX_DELIVERY_KM} km.`;
+        toast('Location is outside delivery range.');
+      } else {
+        status.textContent = `Confirm below. Distance ${pendingLocation.distanceKm.toFixed(1)} km, delivery charge \u20B9${pendingLocation.deliveryFee}.`;
+        toast('Location found. Please confirm it.');
+      }
     },
     () => {
       btn.classList.add('err');
       txt.textContent = 'Could not get location';
       status.style.display = 'block';
       status.textContent = 'You can still place the order without location.';
+      if (mapPicker) mapPicker.classList.remove('expanded', 'ready');
+      pendingLocationUrl = '';
+      pendingLocation = null;
       sharedLocationUrl = '';
+      sharedLocation = null;
     },
     { enableHighAccuracy: true, timeout: 10000 }
   );
+}
+
+function confirmSharedLocation() {
+  const btn = document.getElementById('locBtn');
+  const txt = document.getElementById('locBtnTxt');
+  const status = document.getElementById('locStatus');
+  if (!pendingLocationUrl) {
+    toast('Please share your location first.');
+    return;
+  }
+  sharedLocationUrl = pendingLocationUrl;
+  sharedLocation = pendingLocation;
+  if (sharedLocation && sharedLocation.deliveryFee === null) {
+    toast('Sorry, delivery is available only within 10 km.');
+    sharedLocation = null;
+    sharedLocationUrl = '';
+    estimatedDeliveryFee = 0;
+    refreshCart();
+    return;
+  }
+  estimatedDeliveryFee = sharedLocation ? sharedLocation.deliveryFee : 0;
+  if (btn) btn.classList.add('got');
+  if (txt) txt.textContent = 'Location confirmed';
+  if (status) {
+    status.style.display = 'block';
+    status.textContent = `Location fixed. Distance ${sharedLocation.distanceKm.toFixed(1)} km, delivery charge \u20B9${estimatedDeliveryFee}.`;
+  }
+  refreshCart();
+  toast('Location confirmed');
+}
+
+function clearSharedLocation() {
+  const btn = document.getElementById('locBtn');
+  const txt = document.getElementById('locBtnTxt');
+  const status = document.getElementById('locStatus');
+  const mapPicker = document.getElementById('mapPicker');
+  const mapFrame = document.getElementById('mapFrame');
+  pendingLocationUrl = '';
+  sharedLocationUrl = '';
+  pendingLocation = null;
+  sharedLocation = null;
+  estimatedDeliveryFee = 0;
+  if (btn) btn.classList.remove('got', 'err');
+  if (txt) txt.textContent = 'Share My Location';
+  if (status) status.style.display = 'none';
+  if (mapPicker) mapPicker.classList.remove('on', 'expanded', 'ready');
+  if (mapFrame) mapFrame.innerHTML = '<div class="map-placeholder">Location map preview</div>';
+  refreshCart();
 }
 
 async function placeOrder() {
@@ -486,7 +618,15 @@ async function placeOrder() {
   if (!phone || !/^[6-9]\d{9}$/.test(phone)) {
     toast('Enter a valid Indian mobile number (starts with 6-9)'); return;
   }
-  if (!addr)  { toast('Please enter your delivery address'); return; }
+  if (fulfillmentMode === 'delivery' && !addr)  { toast('Please enter your delivery address'); return; }
+  if (fulfillmentMode === 'delivery' && (!sharedLocationUrl || !sharedLocation)) {
+    toast('Please share and confirm your delivery location');
+    return;
+  }
+  if (fulfillmentMode === 'delivery' && sharedLocation.distanceKm > MAX_DELIVERY_KM) {
+    toast('Sorry, delivery is available only within 10 km');
+    return;
+  }
 
   _orderInProgress = true;
   const poBtnEl = document.getElementById('placeOrderBtn');
@@ -500,11 +640,21 @@ async function placeOrder() {
     await window.CustomerBackend.upsertCustomerProfile({
       name,
       phone,
-      defaultAddress: addr
+      defaultAddress: fulfillmentMode === 'delivery' ? addr : ''
     });
 
     const checkout = await window.CustomerBackend.createRazorpayOrder({
-      customer: { name, phone, address: addr, locationUrl: sharedLocationUrl },
+      fulfillmentMode,
+      customer: {
+        name,
+        phone,
+        address: fulfillmentMode === 'delivery' ? addr : '',
+        locationUrl: fulfillmentMode === 'delivery' ? sharedLocationUrl : '',
+        location: fulfillmentMode === 'delivery' ? {
+          lat: sharedLocation.lat,
+          lng: sharedLocation.lng
+        } : null
+      },
       items: cart.map(c => ({ itemId: c.id, name: c.name, qty: c.qty })),
       source: 'web'
     });
@@ -517,6 +667,10 @@ async function placeOrder() {
 
     cart = [];
     sharedLocationUrl = '';
+    pendingLocationUrl = '';
+    sharedLocation = null;
+    pendingLocation = null;
+    estimatedDeliveryFee = 0;
     save();
     refreshCart();
     rememberTrackingLink(verifiedOrder);
@@ -539,9 +693,11 @@ function resetCheckoutForm() {
   const btn = document.getElementById('locBtn');
   const txt = document.getElementById('locBtnTxt');
   const locStatus = document.getElementById('locStatus');
+  clearSharedLocation();
   if (btn) btn.classList.remove('got','err');
   if (txt) txt.textContent = 'Share My Location';
   if (locStatus) locStatus.style.display = 'none';
+  setFulfillmentMode('delivery');
 }
 
 function showOrderSuccess(order) {
@@ -550,11 +706,17 @@ function showOrderSuccess(order) {
   const modal = document.createElement('div');
   modal.id = 'orderSuccessModal';
   modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;padding:18px;';
+  const modeText = order.fulfillmentMode === 'pickup' ? 'Pickup order' : 'Delivery order';
+  const totalText = order.total ? `&#8377;${order.total}` : '';
   modal.innerHTML = `
     <div style="width:100%;max-width:460px;background:#fff;border-radius:22px;padding:24px;color:#1a1916;box-shadow:0 24px 80px rgba(0,0,0,.35)">
       <div style="font-size:13px;font-weight:800;color:#1f7a63;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Order confirmed</div>
       <div style="font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:700;margin-bottom:8px">${order.orderNumber || 'Your order'}</div>
-      <p style="color:#7a7570;font-size:14px;line-height:1.6;margin-bottom:18px">Payment verified. Track preparation and delivery status live from this link.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+        <span style="border-radius:999px;background:#edf8f4;color:#165a48;padding:6px 10px;font-size:12px;font-weight:800">${modeText}</span>
+        ${totalText ? `<span style="border-radius:999px;background:#f5f3ee;color:#1a1916;padding:6px 10px;font-size:12px;font-weight:800">${totalText} paid</span>` : ''}
+      </div>
+      <p style="color:#7a7570;font-size:14px;line-height:1.6;margin-bottom:18px">Payment verified. Track preparation${order.fulfillmentMode === 'pickup' ? ' and pickup' : ' and delivery'} status from this link.</p>
       <a href="${order.trackingUrl}" style="display:block;text-align:center;background:#1f7a63;color:#fff;text-decoration:none;border-radius:12px;padding:13px 16px;font-weight:800;margin-bottom:10px">Track Order</a>
       <button onclick="document.getElementById('orderSuccessModal').remove()" style="width:100%;border:1px solid #e0dcd5;background:#fff;border-radius:12px;padding:12px 16px;font-weight:700;color:#1a1916">Close</button>
     </div>`;
@@ -697,3 +859,6 @@ window.save        = save;
 window.refreshCart = refreshCart;
 window.toast       = toast;
 window.openCart    = openCart;
+window.setFulfillmentMode = setFulfillmentMode;
+window.confirmSharedLocation = confirmSharedLocation;
+window.clearSharedLocation = clearSharedLocation;

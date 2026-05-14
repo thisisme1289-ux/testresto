@@ -8,38 +8,163 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=DM+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:'DM Sans',sans-serif;background:#f5f3ee;color:#1a1916;display:flex;align-items:center;justify-content:center;padding:20px}.card{width:100%;max-width:520px;background:#fff;border:1px solid #e0dcd5;border-radius:22px;padding:26px;box-shadow:0 18px 60px rgba(0,0,0,.08)}.brand{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:700;color:#1f7a63}.muted{color:#7a7570;font-size:14px;line-height:1.6}.status{margin:22px 0;padding:16px;border-radius:14px;background:#edf8f4;color:#165a48;font-weight:800;text-transform:capitalize}.steps{display:grid;gap:10px;margin:20px 0}.step{display:flex;align-items:center;gap:10px;color:#9a948d}.dot{width:12px;height:12px;border-radius:50%;background:#d8d1c8}.step.on{color:#1a1916;font-weight:700}.step.on .dot{background:#1f7a63}.btn{display:block;text-align:center;text-decoration:none;background:#1f7a63;color:#fff;border-radius:12px;padding:13px 16px;font-weight:800;margin-top:18px}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:'DM Sans',sans-serif;background:#f5f3ee;color:#1a1916;padding:18px}.shell{width:100%;max-width:980px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(300px,.8fr);gap:18px}.card{background:#fff;border:1px solid #e0dcd5;border-radius:18px;padding:22px;box-shadow:0 18px 60px rgba(0,0,0,.08)}.brand{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:700;color:#1f7a63}.muted{color:#7a7570;font-size:14px;line-height:1.55}.topline{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}.pill{display:inline-flex;border-radius:999px;background:#edf8f4;color:#165a48;padding:6px 10px;font-size:12px;font-weight:800;text-transform:capitalize}.status{margin:18px 0;padding:16px;border-radius:14px;background:#edf8f4;color:#165a48;font-weight:800;text-transform:capitalize}.countdown{font-size:30px;font-weight:800;color:#1f7a63;margin:8px 0}.steps{display:grid;gap:10px;margin:20px 0}.step{display:flex;align-items:center;gap:10px;color:#9a948d}.dot{width:12px;height:12px;border-radius:50%;background:#d8d1c8;flex:0 0 12px}.step.on{color:#1a1916;font-weight:700}.step.on .dot{background:#1f7a63}.step.cancelled.on{color:#b91c1c}.step.cancelled.on .dot{background:#b91c1c}.items{display:grid;gap:10px;margin-top:14px}.item{display:grid;grid-template-columns:1fr auto;gap:10px;border-bottom:1px dashed #e0dcd5;padding-bottom:10px}.item:last-child{border-bottom:0}.item strong{font-size:14px}.money{font-weight:800;color:#1f7a63}.total-row{display:flex;justify-content:space-between;gap:12px;margin-top:10px;font-size:15px}.actions{display:grid;gap:10px;margin-top:18px}.btn{display:block;text-align:center;text-decoration:none;background:#1f7a63;color:#fff;border:0;border-radius:12px;padding:13px 16px;font-weight:800;cursor:pointer}.btn.ghost{background:#fff;color:#1f7a63;border:1px solid #1f7a63}.alert{padding:13px 14px;border-radius:12px;background:#fff1f1;color:#991b1b;font-size:14px;line-height:1.5}.rating{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.star{border:1px solid #d8d1c8;background:#fff;border-radius:10px;padding:9px 11px;font-size:18px;cursor:pointer}.star.on{border-color:#1f7a63;background:#edf8f4}.feedback textarea{width:100%;min-height:76px;border:1px solid #d8d1c8;border-radius:12px;padding:11px;font:inherit;resize:vertical}.hidden{display:none!important}@media(max-width:760px){.shell{grid-template-columns:1fr}.card{padding:18px}.countdown{font-size:26px}}
 </style>
 </head>
 <body>
-<main class="card">
-  <div class="brand">Annamay</div>
-  <p class="muted" id="subtitle">Loading your order status...</p>
-  <div class="status" id="status">Checking</div>
-  <div class="steps" id="steps"></div>
-  <p class="muted" id="eta"></p>
-  <a class="btn" href="/">Back to Menu</a>
+<main class="shell">
+  <section class="card">
+    <div class="topline">
+      <div>
+        <div class="brand">Annamay</div>
+        <p class="muted" id="subtitle">Loading your order status...</p>
+      </div>
+      <span class="pill" id="modePill">Order</span>
+    </div>
+    <div class="status" id="status">Checking</div>
+    <div id="etaBlock">
+      <div class="muted" id="etaLabel">Estimated time will appear after the restaurant accepts the order.</div>
+      <div class="countdown hidden" id="countdown"></div>
+    </div>
+    <div class="steps" id="steps"></div>
+    <div class="alert hidden" id="cancelReason"></div>
+    <div class="feedback hidden" id="feedback">
+      <h2 style="font-size:18px;margin:0 0 6px">How was your order?</h2>
+      <p class="muted" id="feedbackText">Your rating helps us improve.</p>
+      <div class="rating" id="ratingBtns"></div>
+      <textarea id="feedbackMessage" placeholder="Optional feedback for the restaurant"></textarea>
+      <button class="btn" style="margin-top:10px" onclick="submitFeedback()">Send Feedback</button>
+      <a class="btn ghost hidden" id="reviewLink" target="_blank" rel="noopener">Review on Google</a>
+    </div>
+  </section>
+
+  <aside class="card">
+    <h1 style="font-size:20px;margin:0 0 10px">Order Summary</h1>
+    <div class="muted" id="customer"></div>
+    <div class="items" id="items"></div>
+    <div id="pricing"></div>
+    <div class="actions">
+      <a class="btn" href="/">Back to Menu</a>
+      <a class="btn ghost" href="tel:+917523992202">Call Restaurant</a>
+    </div>
+  </aside>
 </main>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-functions-compat.js"></script>
 <script src="js/firebase-config.js"></script>
 <script>
-const statuses = ['pending','accepted','preparing','ready','delivered'];
 const params = new URLSearchParams(location.search);
 const order = params.get('order');
 const token = params.get('token');
 const subtitle = document.getElementById('subtitle');
 const statusEl = document.getElementById('status');
 const stepsEl = document.getElementById('steps');
-const etaEl = document.getElementById('eta');
+const etaLabel = document.getElementById('etaLabel');
+const countdownEl = document.getElementById('countdown');
+const modePill = document.getElementById('modePill');
+const customerEl = document.getElementById('customer');
+const itemsEl = document.getElementById('items');
+const pricingEl = document.getElementById('pricing');
+const cancelReasonEl = document.getElementById('cancelReason');
+const feedbackEl = document.getElementById('feedback');
+const reviewLink = document.getElementById('reviewLink');
+const ratingBtns = document.getElementById('ratingBtns');
+let latestOrder = null;
+let selectedRating = 0;
+let countdownTimer = null;
+
+function esc(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+function money(value) {
+  return '\u20B9' + Number(value || 0);
+}
+
+function labelFor(status, mode) {
+  const labels = {
+    pending: 'Order placed',
+    accepted: 'Accepted',
+    preparing: 'Preparing',
+    ready: mode === 'pickup' ? 'Ready for pickup' : 'Ready',
+    out_for_delivery: 'Out for delivery',
+    delivered: mode === 'pickup' ? 'Picked up' : 'Delivered',
+    cancelled: 'Cancelled'
+  };
+  return labels[status] || status || 'Pending';
+}
+
+function timelineFor(mode, status) {
+  if (status === 'cancelled') return ['pending', 'accepted', 'cancelled'];
+  return mode === 'pickup'
+    ? ['pending', 'accepted', 'preparing', 'ready', 'delivered']
+    : ['pending', 'accepted', 'preparing', 'ready', 'out_for_delivery', 'delivered'];
+}
+
+function renderCountdown(iso) {
+  clearInterval(countdownTimer);
+  countdownEl.classList.add('hidden');
+  if (!iso) {
+    etaLabel.textContent = 'Estimated time will appear after the restaurant accepts the order.';
+    return;
+  }
+  const target = new Date(iso).getTime();
+  etaLabel.textContent = 'Estimated ready by ' + new Date(iso).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
+  function tick() {
+    const diff = target - Date.now();
+    if (diff <= 0) {
+      countdownEl.textContent = 'Any moment now';
+    } else {
+      const mins = Math.ceil(diff / 60000);
+      countdownEl.textContent = mins + ' min left';
+    }
+    countdownEl.classList.remove('hidden');
+  }
+  tick();
+  countdownTimer = setInterval(tick, 30000);
+}
+
+function renderFeedback(data) {
+  const complete = data.status === 'delivered';
+  feedbackEl.classList.toggle('hidden', !complete);
+  if (!complete) return;
+  ratingBtns.innerHTML = [1, 2, 3, 4, 5].map(n => `<button class="star ${selectedRating === n ? 'on' : ''}" onclick="setRating(${n})">${n}</button>`).join('');
+  if (data.googleReviewUrl) {
+    reviewLink.href = data.googleReviewUrl;
+    reviewLink.classList.remove('hidden');
+  } else {
+    reviewLink.classList.add('hidden');
+  }
+}
 
 function render(data) {
+  latestOrder = data;
+  const mode = data.fulfillmentMode || 'delivery';
   subtitle.textContent = data.orderNumber ? `Tracking ${data.orderNumber}` : 'Order tracking';
-  statusEl.textContent = data.status || 'pending';
+  modePill.textContent = mode === 'pickup' ? 'Pickup' : 'Delivery';
+  statusEl.textContent = labelFor(data.status, mode);
+  statusEl.style.background = data.status === 'cancelled' ? '#fff1f1' : '#edf8f4';
+  statusEl.style.color = data.status === 'cancelled' ? '#991b1b' : '#165a48';
+  const statuses = timelineFor(mode, data.status);
   const activeIndex = Math.max(0, statuses.indexOf(data.status));
-  stepsEl.innerHTML = statuses.map((s, i) => `<div class="step ${i <= activeIndex ? 'on' : ''}"><span class="dot"></span><span>${s}</span></div>`).join('');
-  etaEl.textContent = data.estimatedReadyAt ? `Estimated ready by ${new Date(data.estimatedReadyAt).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' })}` : 'Estimated time will appear after the restaurant accepts the order.';
+  stepsEl.innerHTML = statuses.map((s, i) => `<div class="step ${i <= activeIndex ? 'on' : ''} ${s === 'cancelled' ? 'cancelled' : ''}"><span class="dot"></span><span>${labelFor(s, mode)}</span></div>`).join('');
+  renderCountdown(data.estimatedReadyAt);
+
+  const customerParts = [];
+  if (data.customer?.phone) customerParts.push('+91 ' + data.customer.phone);
+  if (mode === 'delivery' && data.customer?.address) customerParts.push(data.customer.address);
+  customerEl.textContent = customerParts.join(' | ');
+  itemsEl.innerHTML = (data.items || []).map(item => `<div class="item"><div><strong>${esc(item.name)}</strong><div class="muted">${item.qty} x ${money(item.price)}</div></div><div class="money">${money(item.price * item.qty)}</div></div>`).join('');
+  const p = data.pricing || {};
+  pricingEl.innerHTML = `
+    <div class="total-row"><span class="muted">Subtotal</span><strong>${money(p.subtotal)}</strong></div>
+    <div class="total-row"><span class="muted">GST</span><strong>${money((p.cgst || 0) + (p.sgst || 0))}</strong></div>
+    <div class="total-row"><span class="muted">Delivery fee</span><strong>${money(p.deliveryFee)}</strong></div>
+    <div class="total-row" style="font-size:18px"><span>Total paid</span><strong class="money">${money(p.total)}</strong></div>`;
+  cancelReasonEl.classList.toggle('hidden', data.status !== 'cancelled' || !data.cancellationReason);
+  cancelReasonEl.textContent = data.cancellationReason ? 'Cancelled: ' + data.cancellationReason : '';
+  renderFeedback(data);
 }
 
 async function load() {
@@ -48,17 +173,38 @@ async function load() {
     if (!window.FIREBASE_CONFIG || String(window.FIREBASE_CONFIG.apiKey).startsWith('REPLACE_')) {
       throw new Error('Firebase is not configured yet');
     }
-    firebase.initializeApp(window.FIREBASE_CONFIG);
+    if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
     const result = await firebase.functions().httpsCallable('resolveTrackingOrder')({ orderNumber: order, token });
     render(result.data);
   } catch (err) {
     subtitle.textContent = 'We could not load this tracking link.';
     statusEl.textContent = err.message || 'Invalid tracking link';
     stepsEl.innerHTML = '';
-    etaEl.textContent = '';
+    etaLabel.textContent = '';
   }
 }
+
+function setRating(value) {
+  selectedRating = value;
+  renderFeedback(latestOrder || {});
+}
+
+async function submitFeedback() {
+  if (!selectedRating) {
+    alert('Please choose a rating first.');
+    return;
+  }
+  await firebase.functions().httpsCallable('submitOrderFeedback')({
+    orderNumber: order,
+    token,
+    rating: selectedRating,
+    message: document.getElementById('feedbackMessage').value
+  });
+  document.getElementById('feedbackText').textContent = 'Thank you. Your feedback has been sent.';
+}
+
 load();
+setInterval(load, 10000);
 </script>
 </body>
 </html>

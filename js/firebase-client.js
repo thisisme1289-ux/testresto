@@ -4,7 +4,9 @@
     acceptingOrders: true,
     gstPercent: 5,
     prepTimeDefaultMinutes: 30,
-    deliveryTimeDefaultMinutes: 45
+    deliveryTimeDefaultMinutes: 45,
+    restaurantLocation: { lat: 25.5066, lng: 81.8676 },
+    maxDeliveryKm: 10
   };
 
   const config = window.FIREBASE_CONFIG || {};
