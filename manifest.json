@@ -1,7 +1,7 @@
 {
   "name": "Annamay Restaurant & Bakery",
   "short_name": "Annamay",
-  "description": "192+ dishes — pure veg restaurant in Prayagraj. Order via WhatsApp.",
+  "description": "192+ dishes - pure veg restaurant in Prayagraj with secure online ordering.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f7f2ec",
@@ -25,9 +25,9 @@
       "icons": [{ "src": "images/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "Order on WhatsApp",
+      "name": "Start Order",
       "short_name": "Order",
-      "url": "https://wa.me/917523992202",
+      "url": "/?view=menu",
       "icons": [{ "src": "images/icon-192.png", "sizes": "192x192" }]
     }
   ]

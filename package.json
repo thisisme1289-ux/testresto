@@ -1,0 +1,12 @@
+{
+  "name": "annamay-ordering-platform",
+  "private": true,
+  "scripts": {
+    "seed:menu": "node scripts/seed-menu-from-existing-data.js",
+    "admin:set": "node scripts/set-admin-claim.js",
+    "deploy": "firebase deploy"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.5.0"
+  }
+}

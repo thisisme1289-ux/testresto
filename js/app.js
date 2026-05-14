@@ -4,6 +4,57 @@
 window.addEventListener('scroll', () =>
   document.getElementById('nav').classList.toggle('raised', scrollY > 20), { passive: true });
 
+const CUSTOMER_PROFILE_KEY = 'annamay_customer_profile_v1';
+const TRACKING_LINKS_KEY = 'annamay_tracking_links_v1';
+
+function getSavedCustomerProfile() {
+  try { return JSON.parse(localStorage.getItem(CUSTOMER_PROFILE_KEY) || '{}'); }
+  catch { return {}; }
+}
+
+function saveCustomerProfile(profile) {
+  localStorage.setItem(CUSTOMER_PROFILE_KEY, JSON.stringify(profile));
+}
+
+function fillSavedCustomerProfile() {
+  const profile = getSavedCustomerProfile();
+  const name = document.getElementById('oName');
+  const phone = document.getElementById('oPhone');
+  const addr = document.getElementById('oAddr');
+  if (name && profile.name && !name.value) name.value = profile.name;
+  if (phone && profile.phone && !phone.value) phone.value = profile.phone;
+  if (addr && profile.address && !addr.value) addr.value = profile.address;
+}
+
+function rememberTrackingLink(order) {
+  if (!order || !order.trackingUrl) return;
+  let links = [];
+  try { links = JSON.parse(localStorage.getItem(TRACKING_LINKS_KEY) || '[]'); }
+  catch { links = []; }
+  links.unshift({
+    orderId: order.orderId,
+    orderNumber: order.orderNumber,
+    trackingUrl: order.trackingUrl,
+    total: order.total,
+    createdAt: new Date().toISOString()
+  });
+  localStorage.setItem(TRACKING_LINKS_KEY, JSON.stringify(links.slice(0, 10)));
+}
+
+async function syncMenuFromFirestore() {
+  if (!window.CustomerBackend || typeof window.CustomerBackend.getMenuCatalog !== 'function') return;
+  const catalog = await window.CustomerBackend.getMenuCatalog();
+  if (!catalog || !catalog.menu || !Object.keys(catalog.menu).length) return;
+  Object.keys(MENU).forEach(key => delete MENU[key]);
+  Object.entries(catalog.menu).forEach(([category, items]) => {
+    MENU[category] = items.filter(item => item.isAvailable !== false);
+  });
+  Object.assign(IMGS, catalog.images || {});
+  activeCat = Object.keys(MENU)[0] || activeCat;
+  buildCats();
+  if (document.getElementById('menuPg')?.classList.contains('on')) buildMenuUI();
+}
+
 /* ═══════════════════════════════════════
    ORDER STATUS — reads from Firebase
    ordersOpen is set in data.js (default true)
@@ -34,7 +85,7 @@ function applyOrderStatus() {
       poBtn.className = 'co-btn';
       poBtn.onclick = placeOrder;
       poBtn.disabled = false;
-      poBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg> Place Order via WhatsApp';
+      poBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M7 15h4"/></svg> Pay Securely';
     } else {
       poBtn.className = 'btn-closed';
       poBtn.onclick = null;
@@ -64,9 +115,10 @@ function applyOrderStatus() {
 /* ── Fetch open/closed status from Firebase once on load ── */
 async function fetchOrderStatus() {
   try {
-    const res  = await fetch(FB + '/status/open.json');
-    const data = await res.json();
-    ordersOpen = data !== false; /* null = not set yet = open */
+    if (window.CustomerBackend) {
+      const settings = await window.CustomerBackend.getRestaurantSettings();
+      ordersOpen = settings.acceptingOrders !== false && settings.isOpen !== false;
+    }
   } catch(e) {
     ordersOpen = true;
   }
@@ -76,16 +128,11 @@ async function fetchOrderStatus() {
 /* ── Real-time listener — updates all customer browsers instantly
       when kitchen toggles open/closed ── */
 function listenOrderStatus() {
-  const es = new EventSource(FB + '/status/open.json');
-  es.addEventListener('put', e => {
-    const payload = JSON.parse(e.data);
-    ordersOpen = payload.data !== false;
+  if (!window.CustomerBackend) return;
+  window.CustomerBackend.subscribeRestaurantSettings(settings => {
+    ordersOpen = settings.acceptingOrders !== false && settings.isOpen !== false;
     applyOrderStatus();
   });
-  es.onerror = () => {
-    es.close();
-    setTimeout(listenOrderStatus, 10000);
-  };
 }
 
 /* ═══════════════════════════════════════
@@ -264,7 +311,7 @@ function addToCart() {
 /* ═══════════════════════════════════════
    CART
 ═══════════════════════════════════════ */
-function save() { localStorage.setItem('annamay5', JSON.stringify(cart)); }
+function save() { localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart)); }
 
 function refreshCart() {
   const subtotal = cart.reduce((s,c) => s+c.price*c.qty, 0);
@@ -424,71 +471,12 @@ function shareLocation() {
   );
 }
 
-/* ═══════════════════════════════════════
-   FORMSPREE — BACKGROUND EMAIL
-═══════════════════════════════════════ */
-function sendOrderToFormspree(order) {
-  const itemLines = order.items
-    .map(i => i.name + ' x' + i.qty + ' = Rs.' + (i.price * i.qty))
-    .join('\n');
-
-  const locationLine = sharedLocationUrl
-    ? '\nDelivery Location (Maps): ' + sharedLocationUrl
-    : '';
-
-  const emailBody =
-    'ORDER ID: '  + order.id   + '\n' +
-    'Time: '      + order.time + '\n\n' +
-    '--- CUSTOMER ---\n' +
-    'Name: '      + order.customer.name    + '\n' +
-    'Phone: +91 ' + order.customer.phone   + '\n' +
-    'Address: '   + order.customer.address +
-    locationLine  + '\n\n' +
-    '--- ITEMS ---\n' + itemLines + '\n\n' +
-    '--- BILL ---\n' +
-    'Subtotal : Rs.' + order.subtotal + '\n' +
-    'CGST 2.5%: Rs.' + order.cgst    + '\n' +
-    'SGST 2.5%: Rs.' + order.sgst    + '\n' +
-    'Grand Total: Rs.' + order.total;
-
-  fetch('https://formspree.io/f/xaqvpqlg', {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-    body:    JSON.stringify({ _subject: 'Order ' + order.id, message: emailBody })
-  }).catch(() => {});
-}
-
-/* ═══════════════════════════════════════
-   ORDER
-   Three fixes applied here vs the old code:
-
-   1. _orderInProgress guard — the very first
-      thing checked. Rapid double-clicks are
-      dropped before touching Firebase or
-      Formspree, so no duplicate orders appear
-      in the kitchen dashboard or your inbox.
-
-   2. WhatsApp URL built with encodeURIComponent
-      on the full plain-text message. Dish names
-      like "Mac & Cheese", "Hot & Sour Soup",
-      "Corn & Mushroom Fried Rice" contain literal
-      & characters which were silently breaking the
-      URL — WhatsApp received nothing or a cut-off
-      message. encodeURIComponent converts & to
-      %26, keeping the URL intact.
-
-   3. window.location.href instead of
-      window.open('...', '_blank'). Mobile browsers
-      treat window.open with _blank as a popup and
-      block it, especially after any async work.
-      location.href is never blocked and correctly
-      triggers the WhatsApp app deep link on mobile.
-═══════════════════════════════════════ */
-function placeOrder() {
-  /* Drop double-clicks before any side-effects */
+async function placeOrder() {
   if (_orderInProgress) return;
 
   if (!ordersOpen) { toast('Sorry, we are currently closed'); return; }
+  if (!cart.length) { toast('Your cart is empty'); return; }
+  if (!window.CustomerBackend) { toast('Ordering is still loading. Please try again.'); return; }
 
   const name  = document.getElementById('oName').value.trim();
   const phone = document.getElementById('oPhone').value.trim();
@@ -500,98 +488,80 @@ function placeOrder() {
   }
   if (!addr)  { toast('Please enter your delivery address'); return; }
 
-  /* Lock after all validations pass */
   _orderInProgress = true;
   const poBtnEl = document.getElementById('placeOrderBtn');
-  if (poBtnEl) poBtnEl.disabled = true;
-
-  const subtotal = cart.reduce((s,c) => s+c.price*c.qty, 0);
-  const cgst  = Math.round(subtotal * 0.025);
-  const sgst  = Math.round(subtotal * 0.025);
-  const total = subtotal + cgst + sgst;
-  const id    = 'ORD-' + Date.now().toString(36).toUpperCase();
-  const now   = new Date();
-
-  const order = {
-    id,
-    customer: { name, phone, address: addr },
-    items:    cart.map(c => ({...c})),
-    subtotal, cgst, sgst, total,
-    status:   'new',
-    placedAt: now.toISOString(),
-    time:     now.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' })
-  };
-
-  /* 1. Save to Firebase — kitchen dashboard reads this */
-  fetch(FB + '/orders.json', {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(order)
-  }).catch(() => {});
-
-  /* 2. Save to customer order history */
-  if (typeof window.saveOrderToHistory === 'function') window.saveOrderToHistory(order);
-
-  /* 3. Background email via Formspree */
-  sendOrderToFormspree(order);
-
-  /* 4. Build WhatsApp message
-        Plain text first, then encodeURIComponent
-        the whole thing — no partial encoding. */
-  const sep = '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500';
-
-  const waItemLines = cart.map(c =>
-    '  \u2022 ' + c.name + ' x' + c.qty + ' = Rs.' + (c.price * c.qty)
-  ).join('\n');
-
-  let waText =
-    '\uD83C\uDF7D\uFE0F *New Order -- ' + id + '*\n' +
-    sep + '\n' +
-    '*Items:*\n' + waItemLines + '\n' +
-    sep + '\n' +
-    'Subtotal  :  Rs.' + subtotal + '\n' +
-    'CGST 2.5% :  Rs.' + cgst    + '\n' +
-    'SGST 2.5% :  Rs.' + sgst    + '\n' +
-    sep + '\n' +
-    '*Grand Total  :  Rs.' + total + '*\n' +
-    sep + '\n' +
-    '\uD83D\uDC64 *Customer:* '  + name  + '\n' +
-    '\uD83D\uDCDE *Phone:* +91 ' + phone + '\n' +
-    '\uD83C\uDFE0 *Address:* '   + addr;
-
-  if (sharedLocationUrl) {
-    waText += '\n\uD83D\uDCCD *Location:* ' + sharedLocationUrl;
+  if (poBtnEl) {
+    poBtnEl.disabled = true;
+    poBtnEl.textContent = 'Preparing payment...';
   }
 
-  const waUrl = 'https://wa.me/917523992202?text=' + encodeURIComponent(waText);
+  try {
+    saveCustomerProfile({ name, phone, address: addr });
+    await window.CustomerBackend.upsertCustomerProfile({
+      name,
+      phone,
+      defaultAddress: addr
+    });
 
-  /* 5. Clear cart and reset form */
-  cart = []; sharedLocationUrl = '';
-  save(); refreshCart();
-  ['oName','oPhone','oAddr'].forEach(i => document.getElementById(i).value = '');
-  const btn       = document.getElementById('locBtn');
-  const txt       = document.getElementById('locBtnTxt');
+    const checkout = await window.CustomerBackend.createRazorpayOrder({
+      customer: { name, phone, address: addr, locationUrl: sharedLocationUrl },
+      items: cart.map(c => ({ itemId: c.id, name: c.name, qty: c.qty })),
+      source: 'web'
+    });
+
+    const verifiedOrder = await window.CustomerBackend.openRazorpayCheckout(checkout, {
+      name,
+      phone,
+      email: ''
+    });
+
+    cart = [];
+    sharedLocationUrl = '';
+    save();
+    refreshCart();
+    rememberTrackingLink(verifiedOrder);
+    resetCheckoutForm();
+    closeCart();
+    showOrderSuccess(verifiedOrder);
+  } catch (err) {
+    console.error(err);
+    toast(err && err.message ? err.message : 'Payment could not be completed');
+  } finally {
+    _orderInProgress = false;
+    if (poBtnEl) {
+      poBtnEl.disabled = false;
+      applyOrderStatus();
+    }
+  }
+}
+
+function resetCheckoutForm() {
+  const btn = document.getElementById('locBtn');
+  const txt = document.getElementById('locBtnTxt');
   const locStatus = document.getElementById('locStatus');
-  if (btn)       btn.classList.remove('got','err');
-  if (txt)       txt.textContent = 'Share My Location';
+  if (btn) btn.classList.remove('got','err');
+  if (txt) txt.textContent = 'Share My Location';
   if (locStatus) locStatus.style.display = 'none';
-  closeCart();
-  toast('Order sent via WhatsApp!');
+}
 
-  /* 6. Open WhatsApp
-        location.href is used — never blocked by
-        browsers. Unlocks after 4 s so the user
-        can place another order if they return. */
-  const openWA = () => {
-    window.location.href = waUrl;
-    setTimeout(() => { _orderInProgress = false; }, 4000);
-  };
-
-  if (typeof window.triggerInstallPrompt === 'function') {
-    window.triggerInstallPrompt(openWA);
-  } else {
-    openWA();
-  }
+function showOrderSuccess(order) {
+  const existing = document.getElementById('orderSuccessModal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'orderSuccessModal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;padding:18px;';
+  modal.innerHTML = `
+    <div style="width:100%;max-width:460px;background:#fff;border-radius:22px;padding:24px;color:#1a1916;box-shadow:0 24px 80px rgba(0,0,0,.35)">
+      <div style="font-size:13px;font-weight:800;color:#1f7a63;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Order confirmed</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:700;margin-bottom:8px">${order.orderNumber || 'Your order'}</div>
+      <p style="color:#7a7570;font-size:14px;line-height:1.6;margin-bottom:18px">Payment verified. Track preparation and delivery status live from this link.</p>
+      <a href="${order.trackingUrl}" style="display:block;text-align:center;background:#1f7a63;color:#fff;text-decoration:none;border-radius:12px;padding:13px 16px;font-weight:800;margin-bottom:10px">Track Order</a>
+      <button onclick="document.getElementById('orderSuccessModal').remove()" style="width:100%;border:1px solid #e0dcd5;background:#fff;border-radius:12px;padding:12px 16px;font-weight:700;color:#1a1916">Close</button>
+    </div>`;
+  modal.addEventListener('click', e => {
+    if (e.target === modal) modal.remove();
+  });
+  document.body.appendChild(modal);
 }
 
 /* ═══════════════════════════════════════
@@ -619,8 +589,22 @@ buildDots();
 resetTimer();
 initFeatWheel();
 refreshCart();
-fetchOrderStatus();    /* fetch open/closed once from Firebase */
-listenOrderStatus();   /* then keep listening for real-time changes */
+fillSavedCustomerProfile();
+if (window.CustomerBackend) {
+  window.CustomerBackend.ready
+    .then(() => {
+      fillSavedCustomerProfile();
+      syncMenuFromFirestore().catch(() => {});
+      fetchOrderStatus();
+      listenOrderStatus();
+    })
+    .catch(() => {
+      fetchOrderStatus();
+      applyOrderStatus();
+    });
+} else {
+  fetchOrderStatus();
+}
 
 /* ═══════════════════════════════════════
    FOOTER — HOURS + COPYRIGHT

@@ -3,9 +3,9 @@
    Strategy: Cache-first for assets, network-first for HTML
 ═══════════════════════════════════════════════════════════ */
 
-const CACHE_NAME   = 'annamay-v4';
-const STATIC_CACHE = 'annamay-static-v4';
-const IMG_CACHE    = 'annamay-images-v4';
+const CACHE_NAME   = 'annamay-v5';
+const STATIC_CACHE = 'annamay-static-v5';
+const IMG_CACHE    = 'annamay-images-v5';
 
 /* Core assets to pre-cache on install */
 const PRECACHE_URLS = [
@@ -15,12 +15,15 @@ const PRECACHE_URLS = [
   '/css/wheel.css',
   '/css/menu.css',
   '/css/ui.css',
-  '/css/kitchen.css',
   '/js/data.js',
+  '/js/firebase-config.js',
+  '/js/firebase-client.js',
   '/js/wheel.js',
   '/js/app.js',
   '/js/pwa.js',
   '/js/seo.js',
+  '/track.html',
+  '/admin/index.html',
   '/manifest.json',
   '/images/default.jpg',
   'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap'

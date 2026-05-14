@@ -102,7 +102,7 @@
         fried rice), Pasta (alfredo, arrabiata, pesto), Sizzlers, Burgers, Sandwiches,
         Pav Bhaji, Bhature &amp; Chole Kulche, Continental, Desserts, Shakes, Smoothies,
         Mojito, Mocktails, Hot Beverages, Soups, Salads, Raita, Papad, and freshly baked goods.
-        All food is strictly vegetarian. Online ordering is available via WhatsApp.
+        All food is strictly vegetarian. Online ordering is available online.
         GST is applicable (CGST 2.5% + SGST 2.5%).
       </p>
 
@@ -115,7 +115,7 @@
       </address>
 
       <p>
-        <strong>Phone / WhatsApp:</strong>
+        <strong>Phone:</strong>
         <a itemprop="telephone" href="tel:+917523992202">+91 75239 92202</a>
       </p>
 
@@ -140,7 +140,7 @@
 
       <p>
         <strong>Ordering method:</strong>
-        WhatsApp order at <a href="https://wa.me/917523992202">+91 75239 92202</a>.
+        Online order at <a href="tel:+917523992202">+91 75239 92202</a>.
         Browse the full menu online at <a href="https://annamay.in/#menu">annamay.in/#menu</a>.
       </p>
 
@@ -178,8 +178,8 @@
         <h2>Frequently Asked Questions</h2>
         <dl>
           <dt>How do I order food from Annamay Restaurant?</dt>
-          <dd>Order via WhatsApp at +91 75239 92202. Add items to your cart on the website,
-              fill in delivery details, and your order is sent as a formatted WhatsApp message.</dd>
+          <dd>Order online at +91 75239 92202. Add items to your cart on the website,
+              fill in delivery details, and your order is sent as a secure online order.</dd>
 
           <dt>Is Annamay Restaurant vegetarian?</dt>
           <dd>Yes. Annamay Restaurant &amp; Bakery is 100% pure vegetarian. No meat, fish,
@@ -204,7 +204,7 @@
           <dd>GST is applicable: CGST 2.5% + SGST 2.5% = 5% total, added at checkout.</dd>
 
           <dt>Does Annamay Restaurant offer home delivery?</dt>
-          <dd>Yes, delivery is available. Place your order via WhatsApp with your address.</dd>
+          <dd>Yes, delivery is available. Place your order online with your address.</dd>
 
           <dt>What is the best vegetarian restaurant in Prayagraj?</dt>
           <dd>Annamay Restaurant &amp; Bakery in Shantipuram, Phaphamau, Prayagraj is

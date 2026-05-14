@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Track Order | Annamay</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=DM+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:'DM Sans',sans-serif;background:#f5f3ee;color:#1a1916;display:flex;align-items:center;justify-content:center;padding:20px}.card{width:100%;max-width:520px;background:#fff;border:1px solid #e0dcd5;border-radius:22px;padding:26px;box-shadow:0 18px 60px rgba(0,0,0,.08)}.brand{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:700;color:#1f7a63}.muted{color:#7a7570;font-size:14px;line-height:1.6}.status{margin:22px 0;padding:16px;border-radius:14px;background:#edf8f4;color:#165a48;font-weight:800;text-transform:capitalize}.steps{display:grid;gap:10px;margin:20px 0}.step{display:flex;align-items:center;gap:10px;color:#9a948d}.dot{width:12px;height:12px;border-radius:50%;background:#d8d1c8}.step.on{color:#1a1916;font-weight:700}.step.on .dot{background:#1f7a63}.btn{display:block;text-align:center;text-decoration:none;background:#1f7a63;color:#fff;border-radius:12px;padding:13px 16px;font-weight:800;margin-top:18px}
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="brand">Annamay</div>
+  <p class="muted" id="subtitle">Loading your order status...</p>
+  <div class="status" id="status">Checking</div>
+  <div class="steps" id="steps"></div>
+  <p class="muted" id="eta"></p>
+  <a class="btn" href="/">Back to Menu</a>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-functions-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script>
+const statuses = ['pending','accepted','preparing','ready','delivered'];
+const params = new URLSearchParams(location.search);
+const order = params.get('order');
+const token = params.get('token');
+const subtitle = document.getElementById('subtitle');
+const statusEl = document.getElementById('status');
+const stepsEl = document.getElementById('steps');
+const etaEl = document.getElementById('eta');
+
+function render(data) {
+  subtitle.textContent = data.orderNumber ? `Tracking ${data.orderNumber}` : 'Order tracking';
+  statusEl.textContent = data.status || 'pending';
+  const activeIndex = Math.max(0, statuses.indexOf(data.status));
+  stepsEl.innerHTML = statuses.map((s, i) => `<div class="step ${i <= activeIndex ? 'on' : ''}"><span class="dot"></span><span>${s}</span></div>`).join('');
+  etaEl.textContent = data.estimatedReadyAt ? `Estimated ready by ${new Date(data.estimatedReadyAt).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' })}` : 'Estimated time will appear after the restaurant accepts the order.';
+}
+
+async function load() {
+  try {
+    if (!order || !token) throw new Error('Invalid tracking link');
+    if (!window.FIREBASE_CONFIG || String(window.FIREBASE_CONFIG.apiKey).startsWith('REPLACE_')) {
+      throw new Error('Firebase is not configured yet');
+    }
+    firebase.initializeApp(window.FIREBASE_CONFIG);
+    const result = await firebase.functions().httpsCallable('resolveTrackingOrder')({ orderNumber: order, token });
+    render(result.data);
+  } catch (err) {
+    subtitle.textContent = 'We could not load this tracking link.';
+    statusEl.textContent = err.message || 'Invalid tracking link';
+    stepsEl.innerHTML = '';
+    etaEl.textContent = '';
+  }
+}
+load();
+</script>
+</body>
+</html>

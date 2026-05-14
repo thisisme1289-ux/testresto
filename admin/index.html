@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Annamay Admin</title>
+<meta name="robots" content="noindex, nofollow">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:'DM Sans',sans-serif;background:#f5f3ee;color:#1a1916}.gate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}.box{width:100%;max-width:380px;background:#fff;border:1px solid #e0dcd5;border-radius:18px;padding:24px;box-shadow:0 18px 60px rgba(0,0,0,.08)}h1{margin:0 0 8px;font-size:24px}.muted{color:#7a7570;font-size:14px}.field{display:grid;gap:6px;margin:14px 0}.field label{font-size:12px;font-weight:800;color:#7a7570;text-transform:uppercase}.field input,.field textarea,.field select{width:100%;border:1px solid #d8d1c8;border-radius:10px;padding:12px;font:inherit}.btn{border:0;border-radius:10px;background:#1f7a63;color:#fff;font-weight:800;padding:12px 14px;cursor:pointer}.btn.ghost{background:#fff;color:#1f7a63;border:1px solid #1f7a63}.btn.warn{background:#b91c1c}.app{display:none}.top{position:sticky;top:0;background:#fff;border-bottom:1px solid #e0dcd5;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;z-index:10}.tabs{display:flex;gap:8px;flex-wrap:wrap}.tab{border:1px solid #d8d1c8;background:#fff;border-radius:999px;padding:9px 13px;font-weight:800;cursor:pointer}.tab.on{background:#1f7a63;color:#fff;border-color:#1f7a63}.wrap{max-width:1240px;margin:0 auto;padding:20px}.panel{display:none}.panel.on{display:block}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}.card{background:#fff;border:1px solid #e0dcd5;border-radius:14px;padding:16px}.row{display:flex;justify-content:space-between;gap:12px;align-items:center}.pill{border-radius:999px;background:#edf8f4;color:#165a48;padding:4px 9px;font-size:11px;font-weight:800;text-transform:capitalize}.items{font-size:13px;color:#7a7570;line-height:1.6;margin:10px 0}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.menu-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:18px}.danger{color:#b91c1c}.metric{font-size:28px;font-weight:800;color:#1f7a63}
+</style>
+</head>
+<body>
+<section class="gate" id="gate">
+  <div class="box">
+    <h1>Admin Login</h1>
+    <p class="muted">Use the staff email approved for this Firebase project.</p>
+    <div class="field"><label>Email</label><input id="email" type="email" autocomplete="email"></div>
+    <div class="field"><label>Password</label><input id="password" type="password" autocomplete="current-password"></div>
+    <button class="btn" style="width:100%" onclick="login()">Sign In</button>
+    <p class="muted danger" id="loginError"></p>
+  </div>
+</section>
+
+<section class="app" id="app">
+  <header class="top">
+    <div>
+      <strong>Annamay Admin</strong>
+      <div class="muted" id="adminEmail"></div>
+    </div>
+    <div class="tabs">
+      <button class="tab on" onclick="showTab('orders', this)">Orders</button>
+      <button class="tab" onclick="showTab('menu', this)">Menu</button>
+      <button class="tab" onclick="showTab('settings', this)">Settings</button>
+      <button class="tab" onclick="showTab('analytics', this)">Analytics</button>
+      <button class="tab" onclick="logout()">Logout</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="panel on" id="orders"><div class="grid" id="ordersGrid"></div></section>
+    <section class="panel" id="menu">
+      <div class="card">
+        <h2>Add / Edit Item</h2>
+        <div class="menu-form">
+          <input id="itemId" placeholder="Item ID for edit">
+          <input id="itemName" placeholder="Name">
+          <input id="itemCategory" placeholder="Category">
+          <input id="itemPrice" type="number" placeholder="Price">
+          <input id="itemImage" placeholder="Image URL">
+          <select id="itemAvailable"><option value="true">Available</option><option value="false">Unavailable</option></select>
+        </div>
+        <button class="btn" onclick="saveMenuItem()">Save Item</button>
+      </div>
+      <h2>Menu Items</h2>
+      <div class="grid" id="menuGrid"></div>
+    </section>
+    <section class="panel" id="settings">
+      <div class="card">
+        <h2>Restaurant Status</h2>
+        <p class="muted">This controls whether customers can proceed to checkout.</p>
+        <div class="actions">
+          <button class="btn" onclick="setAvailability(true)">Accept Orders</button>
+          <button class="btn warn" onclick="setAvailability(false)">Pause Orders</button>
+        </div>
+      </div>
+    </section>
+    <section class="panel" id="analytics">
+      <div class="grid">
+        <div class="card"><div class="muted">Today Orders</div><div class="metric" id="metricOrders">0</div></div>
+        <div class="card"><div class="muted">Today Sales</div><div class="metric" id="metricSales">&#8377;0</div></div>
+      </div>
+    </section>
+  </main>
+</section>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-functions-compat.js"></script>
+<script src="/js/firebase-config.js"></script>
+<script>
+firebase.initializeApp(window.FIREBASE_CONFIG);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const functions = firebase.functions();
+const updateOrderStatus = functions.httpsCallable('updateOrderStatus');
+const setRestaurantAvailability = functions.httpsCallable('setRestaurantAvailability');
+
+function showTab(id, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('on', p.id === id));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+  btn.classList.add('on');
+}
+
+async function login() {
+  const error = document.getElementById('loginError');
+  error.textContent = '';
+  try {
+    await auth.signInWithEmailAndPassword(email.value, password.value);
+  } catch (err) {
+    error.textContent = err.message;
+  }
+}
+
+function logout() { auth.signOut(); }
+
+auth.onAuthStateChanged(async user => {
+  if (!user) {
+    gate.style.display = 'flex';
+    app.style.display = 'none';
+    return;
+  }
+  const token = await user.getIdTokenResult(true);
+  if (token.claims.admin !== true) {
+    loginError.textContent = 'This account is not an admin.';
+    await auth.signOut();
+    return;
+  }
+  gate.style.display = 'none';
+  app.style.display = 'block';
+  adminEmail.textContent = user.email;
+  listenOrders();
+  listenMenu();
+});
+
+function listenOrders() {
+  db.collection('orders').orderBy('createdAt', 'desc').limit(80).onSnapshot(snap => {
+    let todayCount = 0, todaySales = 0;
+    const today = new Date().toISOString().slice(0, 10);
+    const paidDocs = snap.docs.filter(doc => doc.data().payment?.status === 'paid');
+    ordersGrid.innerHTML = paidDocs.map(doc => {
+      const o = { id: doc.id, ...doc.data() };
+      const created = o.createdAt?.toDate ? o.createdAt.toDate() : new Date();
+      if (created.toISOString().startsWith(today) && o.payment?.status === 'paid') {
+        todayCount += 1;
+        todaySales += o.pricing?.total || 0;
+      }
+      const items = (o.items || []).map(i => `${i.name} x${i.qty}`).join('<br>');
+      return `<div class="card">
+        <div class="row"><strong>${o.orderNumber || o.id}</strong><span class="pill">${o.status}</span></div>
+        <div class="muted">${o.customer?.name || ''} &middot; ${o.customer?.phone || ''}</div>
+        <div class="items">${items}</div>
+        <div class="row"><strong>&#8377;${o.pricing?.total || 0}</strong><span class="pill">${o.payment?.status || 'unpaid'}</span></div>
+        <div class="actions">
+          ${['accepted','preparing','ready','delivered','cancelled'].map(s => `<button class="btn ghost" onclick="changeStatus('${o.id}','${s}')">${s}</button>`).join('')}
+        </div>
+      </div>`;
+    }).join('') || '<p class="muted">No orders yet.</p>';
+    metricOrders.textContent = todayCount;
+    metricSales.textContent = `₹${todaySales}`;
+  });
+}
+
+async function changeStatus(orderId, status) {
+  const payload = { orderId, status };
+  if (status === 'accepted') payload.estimatedPrepMinutes = 30;
+  await updateOrderStatus(payload);
+}
+
+function listenMenu() {
+  db.collection('menuItems').orderBy('categoryName').onSnapshot(snap => {
+    menuGrid.innerHTML = snap.docs.map(doc => {
+      const item = { id: doc.id, ...doc.data() };
+      return `<div class="card">
+        <div class="row"><strong>${item.name}</strong><span>&#8377;${item.price}</span></div>
+        <div class="muted">${item.categoryName || item.categoryId || ''}</div>
+        <div class="actions">
+          <button class="btn ghost" onclick="editItem('${item.id}')">Edit</button>
+          <button class="btn ghost" onclick="toggleItem('${item.id}', ${item.isAvailable === false})">${item.isAvailable === false ? 'Enable' : 'Disable'}</button>
+          <button class="btn warn" onclick="deleteItem('${item.id}')">Delete</button>
+        </div>
+      </div>`;
+    }).join('');
+  });
+}
+
+window.editItem = async id => {
+  const snap = await db.collection('menuItems').doc(id).get();
+  const item = snap.data();
+  itemId.value = id;
+  itemName.value = item.name || '';
+  itemCategory.value = item.categoryName || item.categoryId || '';
+  itemPrice.value = item.price || 0;
+  itemImage.value = item.imageUrl || '';
+  itemAvailable.value = String(item.isAvailable !== false);
+};
+
+async function saveMenuItem() {
+  const id = itemId.value.trim() || itemName.value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  await db.collection('menuItems').doc(id).set({
+    name: itemName.value.trim(),
+    categoryName: itemCategory.value.trim(),
+    categoryId: itemCategory.value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    price: Number(itemPrice.value),
+    imageUrl: itemImage.value.trim(),
+    isAvailable: itemAvailable.value === 'true',
+    isActive: true,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
+  itemId.value = itemName.value = itemCategory.value = itemPrice.value = itemImage.value = '';
+}
+
+async function toggleItem(id, enable) {
+  await db.collection('menuItems').doc(id).update({ isAvailable: enable, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+}
+
+async function deleteItem(id) {
+  if (confirm('Delete this menu item?')) await db.collection('menuItems').doc(id).delete();
+}
+
+async function setAvailability(open) {
+  await setRestaurantAvailability({ isOpen: open, acceptingOrders: open });
+}
+</script>
+</body>
+</html>

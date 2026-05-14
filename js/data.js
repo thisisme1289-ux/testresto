@@ -505,10 +505,10 @@ function getImg(n){
 /* ═══════════════════════════════════════
    STATE
 ═══════════════════════════════════════ */
-let cart=JSON.parse(localStorage.getItem('annamay5')||'[]');
+const CART_STORAGE_KEY = 'annamay_cart_v1';
+let cart=JSON.parse(localStorage.getItem(CART_STORAGE_KEY)||'[]');
 let activeCat='South Indian', selItem=null, selQty=1, searchMode=false;
 let slideIdx=0; const SLIDES=6; let slideTimer;
-const FB = 'https://restaurant-a6aee-default-rtdb.asia-southeast1.firebasedatabase.app';
 let ordersOpen = true;
 
 /* ═══════════════════════════════════════
