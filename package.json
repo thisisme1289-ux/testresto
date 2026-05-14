@@ -1,5 +1,6 @@
 {
   "name": "annamay-ordering-platform",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "seed:menu": "node scripts/seed-menu-from-existing-data.js",
