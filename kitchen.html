@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kitchen Dashboard — Annamay</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --p:#1f7a63; --p2:#165a48; --a:#2bbf9b;
+  --ink:#1a1916; --muted:#7a7570; --border:#e0dcd5;
+  --card:#fff; --cream:#f5f3ee;
+  --sh-g:0 8px 24px rgba(31,122,99,.3);
+  --ease:cubic-bezier(.4,0,.2,1);
+  --spring:cubic-bezier(.34,1.56,.64,1);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html{-webkit-tap-highlight-color:transparent;}
+body{
+  font-family:'DM Sans',sans-serif;
+  background:#0c1910;
+  color:#fff;
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit;cursor:pointer;}
+
+/* ══ PASSWORD GATE ══ */
+.gate{
+  position:fixed;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  background:#0c1910;z-index:999;
+}
+.gate-box{
+  background:#162b20;border:1.5px solid #1e3d28;
+  border-radius:24px;padding:40px 32px;
+  width:90%;max-width:380px;text-align:center;
+  box-shadow:0 30px 80px rgba(0,0,0,.5);
+}
+.gate-logo{
+  font-family:'Cormorant Garamond',serif;
+  font-size:34px;font-weight:700;font-style:italic;
+  color:var(--a);margin-bottom:4px;
+}
+.gate-sub{font-size:13px;color:rgba(255,255,255,.35);margin-bottom:32px;letter-spacing:.3px;}
+.gate-input{
+  width:100%;padding:14px 16px;
+  border:1.5px solid #1e3d28;border-radius:12px;
+  background:#0c1910;color:#fff;
+  font-family:'DM Sans',sans-serif;font-size:15px;
+  margin-bottom:12px;outline:none;
+  transition:border-color .2s;
+}
+.gate-input:focus{border-color:var(--a);}
+.gate-input::placeholder{color:rgba(255,255,255,.25);}
+.gate-btn{
+  width:100%;padding:14px;border:none;border-radius:12px;
+  background:linear-gradient(135deg,var(--p),var(--a));
+  color:#fff;font-family:'DM Sans',sans-serif;
+  font-size:15px;font-weight:700;
+  box-shadow:var(--sh-g);
+  transition:transform .2s var(--spring),box-shadow .2s;
+}
+.gate-btn:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(31,122,99,.42);}
+.gate-btn:active{transform:scale(.97);}
+.gate-err{font-size:12px;color:#f87171;margin-top:10px;display:none;}
+
+/* ══ HEADER ══ */
+.k-head{
+  background:linear-gradient(135deg,#092e1e,var(--p));
+  padding:18px 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:12px;
+  position:sticky;top:0;z-index:100;
+  box-shadow:0 4px 24px rgba(0,0,0,.35);
+}
+.k-logo{
+  font-family:'Cormorant Garamond',serif;
+  font-size:24px;font-weight:700;font-style:italic;color:#fff;
+}
+.k-logo small{
+  font-family:'DM Sans',sans-serif;font-style:normal;
+  font-size:11px;font-weight:400;
+  color:rgba(255,255,255,.4);
+  display:block;margin-top:1px;letter-spacing:.3px;
+}
+.k-head-r{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+
+/* ── live badge ── */
+.k-live{
+  display:flex;align-items:center;gap:7px;
+  background:rgba(43,191,155,.15);
+  border:1px solid rgba(43,191,155,.3);
+  color:var(--a);padding:6px 14px;
+  border-radius:50px;font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:1px;
+}
+.k-live-dot{width:7px;height:7px;background:var(--a);border-radius:50%;animation:blink 1.5s infinite;}
+@keyframes blink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(1.4)}}
+
+/* ── toggle switch ── */
+.k-toggle-wrap{
+  display:flex;align-items:center;gap:10px;
+  background:rgba(0,0,0,.28);border-radius:50px;
+  padding:8px 16px;border:1px solid rgba(255,255,255,.08);
+}
+.k-toggle-label{font-size:11px;font-weight:700;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.8px;}
+.k-toggle-status{font-size:12px;font-weight:800;letter-spacing:.4px;transition:color .3s;min-width:48px;}
+.k-toggle-status.open{color:#4ade80;}
+.k-toggle-status.closed{color:#f87171;}
+.k-toggle-status.loading{color:rgba(255,255,255,.3);}
+
+.k-switch{position:relative;width:52px;height:28px;cursor:pointer;flex-shrink:0;}
+.k-switch input{opacity:0;width:0;height:0;position:absolute;}
+.k-switch-track{position:absolute;inset:0;border-radius:28px;background:#374151;transition:background .3s;border:1.5px solid rgba(255,255,255,.1);}
+.k-switch input:checked~.k-switch-track{background:#16a34a;}
+.k-switch-thumb{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.3);transition:transform .3s var(--spring);}
+.k-switch input:checked~.k-switch-thumb{transform:translateX(24px);}
+
+/* ══ BODY ══ */
+.k-body{padding:24px;max-width:1400px;margin:0 auto;}
+
+.k-sec-t{
+  font-size:9px;font-weight:700;text-transform:uppercase;
+  letter-spacing:2.5px;color:rgba(255,255,255,.3);
+  margin-bottom:16px;
+}
+.k-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(290px,1fr));
+  gap:16px;margin-bottom:44px;
+}
+
+/* ══ CARDS ══ */
+.k-card{
+  background:#162b20;border:1.5px solid #1e3d28;
+  border-radius:16px;padding:20px;
+  cursor:pointer;
+  transition:all .24s var(--ease);
+  position:relative;overflow:hidden;
+  animation:cardIn .3s var(--spring);
+}
+@keyframes cardIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.k-card::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;
+  width:4px;background:var(--a);border-radius:16px 0 0 16px;
+}
+.k-card.done::before{background:rgba(255,255,255,.12);}
+.k-card:hover{background:#1c3528;border-color:var(--a);transform:translateY(-3px);box-shadow:0 10px 32px rgba(0,0,0,.35);}
+.k-card.done:hover{border-color:#243d30;}
+
+.k-card-h{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;}
+.k-oid{font-family:'DM Mono',monospace;font-size:13px;font-weight:500;color:#fff;}
+.k-time{font-size:11px;color:rgba(255,255,255,.35);margin-top:3px;}
+.k-badge{padding:3px 11px;border-radius:50px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.k-badge.new{background:rgba(43,191,155,.15);color:var(--a);border:1px solid rgba(43,191,155,.28);}
+.k-badge.done{background:rgba(255,255,255,.06);color:rgba(255,255,255,.28);border:1px solid rgba(255,255,255,.08);}
+
+.k-cust{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.06);}
+.k-av{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--p),var(--a));display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:700;color:#fff;flex-shrink:0;}
+.k-cname{font-weight:600;font-size:14px;color:#fff;}
+.k-cph{font-size:11px;color:rgba(255,255,255,.35);margin-top:2px;}
+
+.k-items{margin-bottom:14px;}
+.k-item{display:flex;justify-content:space-between;font-size:13px;color:rgba(255,255,255,.62);padding:3px 0;}
+.k-item-n{flex:1;}
+.k-item-q{color:var(--a);font-weight:600;margin:0 8px;font-family:'DM Mono',monospace;}
+.k-item-p{color:rgba(255,255,255,.35);font-family:'DM Mono',monospace;}
+
+.k-total{display:flex;justify-content:space-between;padding-top:12px;border-top:1px solid rgba(255,255,255,.06);font-weight:700;font-size:15px;color:#fff;}
+.k-total-a{color:var(--a);font-family:'DM Mono',monospace;}
+
+.k-acts{display:flex;gap:8px;margin-top:16px;}
+.k-btn-done{
+  flex:1;padding:10px;border-radius:10px;border:none;
+  background:linear-gradient(135deg,var(--p),var(--a));
+  color:#fff;font-family:'DM Sans',sans-serif;
+  font-size:13px;font-weight:700;
+  transition:all .2s var(--ease);
+}
+.k-btn-done:hover{transform:translateY(-2px);box-shadow:var(--sh-g);}
+.k-btn-done:active{transform:scale(.97);}
+.k-btn-done:disabled{opacity:.3;cursor:not-allowed;transform:none;box-shadow:none;}
+.k-btn-view{
+  padding:10px 15px;border-radius:10px;
+  border:1px solid rgba(255,255,255,.1);background:transparent;
+  color:rgba(255,255,255,.45);font-family:'DM Sans',sans-serif;
+  font-size:13px;font-weight:600;transition:all .2s;
+}
+.k-btn-view:hover{border-color:rgba(255,255,255,.28);color:#fff;}
+
+/* done section dimmed */
+.k-done-wrap{opacity:.5;}
+
+/* ══ EMPTY STATE ══ */
+.k-empty{text-align:center;padding:70px 20px;grid-column:1/-1;}
+.k-empty svg{width:46px;height:46px;stroke:rgba(255,255,255,.1);fill:none;stroke-width:1.5;margin:0 auto 14px;display:block;}
+.k-empty p{font-size:15px;font-weight:600;color:rgba(255,255,255,.3);}
+.k-empty small{font-size:12px;color:rgba(255,255,255,.18);margin-top:5px;display:block;}
+
+/* ══ ORDER DETAIL MODAL ══ */
+.k-det-ov{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,.72);z-index:995;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  align-items:center;justify-content:center;
+}
+.k-det-ov.on{display:flex;}
+.k-det{
+  background:#162b20;border:1.5px solid #1e3d28;
+  border-radius:20px;width:90%;max-width:500px;
+  max-height:90vh;overflow-y:auto;padding:28px;
+  animation:modalIn .35s var(--spring);
+  box-shadow:0 30px 80px rgba(0,0,0,.55);
+}
+@keyframes modalIn{from{transform:scale(.82) translateY(28px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+.k-det-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;}
+.k-det-title{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;color:#fff;font-style:italic;}
+.k-det-x{
+  width:32px;height:32px;border-radius:50%;
+  border:1px solid rgba(255,255,255,.15);background:transparent;
+  color:rgba(255,255,255,.55);font-size:18px;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .2s;
+}
+.k-det-x:hover{background:rgba(255,255,255,.1);color:#fff;}
+.k-det-s{margin-bottom:18px;}
+.k-det-l{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,.3);margin-bottom:8px;}
+.k-det-v{font-size:14px;color:rgba(255,255,255,.75);line-height:1.7;}
+
+/* ══ TOAST ══ */
+.toast{
+  position:fixed;bottom:28px;left:50%;
+  transform:translateX(-50%) translateY(16px);
+  background:var(--ink);color:#fff;
+  padding:10px 22px;border-radius:50px;
+  font-size:13px;font-weight:500;z-index:9999;
+  opacity:0;pointer-events:none;
+  transition:all .35s var(--spring);
+  white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.3);
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ══ RESPONSIVE ══ */
+@media(max-width:640px){
+  .k-head{padding:14px 16px;}
+  .k-body{padding:14px;}
+  .k-logo small{display:none;}
+}
+</style>
+</head>
+<body>
+
+<!-- ══ PASSWORD GATE ══ -->
+<div class="gate" id="gate">
+  <div class="gate-box">
+    <div class="gate-logo">Annamay</div>
+    <div class="gate-sub">Kitchen Dashboard &mdash; Staff Only</div>
+    <input class="gate-input" type="password" id="gateInput"
+           placeholder="Enter password" autocomplete="current-password">
+    <button class="gate-btn" onclick="checkPwd()">Enter Kitchen</button>
+    <div class="gate-err" id="gateErr">Incorrect password. Please try again.</div>
+  </div>
+</div>
+
+<!-- ══ KITCHEN APP ══ -->
+<div id="kitchenApp" style="display:none;">
+
+  <div class="k-head">
+    <div class="k-logo">
+      Annamay
+      <small>Kitchen Dashboard &mdash; Live Orders</small>
+    </div>
+    <div class="k-head-r">
+      <div class="k-toggle-wrap">
+        <span class="k-toggle-label">Orders</span>
+        <label class="k-switch" title="Toggle online ordering">
+          <input type="checkbox" id="orderToggle" onchange="setOrderStatus(this.checked)">
+          <div class="k-switch-track"></div>
+          <div class="k-switch-thumb"></div>
+        </label>
+        <span class="k-toggle-status loading" id="kToggleStatus">Loading</span>
+      </div>
+      <div class="k-live">
+        <span class="k-live-dot"></span> Live
+      </div>
+    </div>
+  </div>
+
+  <div class="k-body">
+    <div class="k-sec-t">Active Orders</div>
+    <div class="k-grid" id="kActive">
+      <div class="k-empty">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <p>Connecting&hellip;</p>
+        <small>Waiting for Firebase</small>
+      </div>
+    </div>
+
+    <div class="k-sec-t" style="margin-top:4px;">Completed Today</div>
+    <div class="k-grid k-done-wrap" id="kDone">
+      <p style="color:rgba(255,255,255,.18);font-size:13px;padding:4px 0;">No completed orders yet.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ ORDER DETAIL MODAL ══ -->
+<div class="k-det-ov" id="kDetOv" onclick="closeDetModal(event)">
+  <div class="k-det" onclick="event.stopPropagation()" id="kDetPanel"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════
+   CONFIG — change PWD to your own password
+══════════════════════════════════════════ */
+const FB  = 'https://restaurant-a6aee-default-rtdb.asia-southeast1.firebasedatabase.app';
+const PWD = 'annamay2024';
+
+/* ══════════════════════════════════════════
+   PASSWORD GATE
+══════════════════════════════════════════ */
+(function checkSession() {
+  if (sessionStorage.getItem('k_auth') === PWD) showApp();
+})();
+
+document.getElementById('gateInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') checkPwd();
+});
+
+function checkPwd() {
+  const val = document.getElementById('gateInput').value;
+  if (val === PWD) {
+    sessionStorage.setItem('k_auth', PWD);
+    showApp();
+  } else {
+    document.getElementById('gateErr').style.display = 'block';
+    document.getElementById('gateInput').value = '';
+    document.getElementById('gateInput').focus();
+  }
+}
+
+function showApp() {
+  document.getElementById('gate').style.display   = 'none';
+  document.getElementById('kitchenApp').style.display = 'block';
+  init();
+}
+
+/* ══════════════════════════════════════════
+   STATE
+══════════════════════════════════════════ */
+let allOrders = {};
+
+/* ══════════════════════════════════════════
+   INIT
+══════════════════════════════════════════ */
+function init() {
+  fetchStatus();
+  listenStatus();
+  listenOrders();
+}
+
+/* ══════════════════════════════════════════
+   OPEN / CLOSED STATUS
+══════════════════════════════════════════ */
+async function fetchStatus() {
+  try {
+    const res  = await fetch(`${FB}/status/open.json`);
+    const data = await res.json();
+    /* null means the key doesn't exist yet — treat as open */
+    applyStatus(data !== false);
+  } catch(e) {
+    applyStatus(true);
+  }
+}
+
+/* Real-time listener — SSE from Firebase */
+function listenStatus() {
+  const es = new EventSource(`${FB}/status/open.json`);
+  es.addEventListener('put', e => {
+    const payload = JSON.parse(e.data);
+    applyStatus(payload.data !== false);
+  });
+  es.onerror = () => {
+    es.close();
+    setTimeout(listenStatus, 8000);
+  };
+}
+
+function applyStatus(isOpen) {
+  const tog = document.getElementById('orderToggle');
+  const sts = document.getElementById('kToggleStatus');
+  if (tog) tog.checked = isOpen;
+  if (sts) {
+    sts.textContent  = isOpen ? 'Open' : 'Closed';
+    sts.className    = 'k-toggle-status ' + (isOpen ? 'open' : 'closed');
+  }
+}
+
+/* Called when staff flips the switch */
+function setOrderStatus(isOpen) {
+  fetch(`${FB}/status/open.json`, {
+    method:  'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(isOpen)
+  })
+  .then(() => toast(isOpen ? '\u2705 Orders are now OPEN' : '\uD83D\uDD34 Orders are now CLOSED'))
+  .catch(() => toast('Failed to update — check connection'));
+}
+
+/* ══════════════════════════════════════════
+   ORDERS — REAL-TIME via SSE
+══════════════════════════════════════════ */
+function listenOrders() {
+  const es = new EventSource(`${FB}/orders.json`);
+
+  /* Initial full load */
+  es.addEventListener('put', e => {
+    const payload = JSON.parse(e.data);
+    if (payload.path === '/') {
+      allOrders = payload.data || {};
+    } else {
+      /* Nested put — single order update */
+      const key = payload.path.replace('/', '');
+      if (payload.data) {
+        allOrders[key] = payload.data;
+      } else {
+        delete allOrders[key];
+      }
+    }
+    renderOrders();
+  });
+
+  /* Partial update (PATCH) — e.g. status change */
+  es.addEventListener('patch', e => {
+    const payload = JSON.parse(e.data);
+    if (payload.data) Object.assign(allOrders, payload.data);
+    renderOrders();
+  });
+
+  es.onerror = () => {
+    es.close();
+    setTimeout(listenOrders, 8000);
+  };
+}
+
+/* ══════════════════════════════════════════
+   RENDER ORDERS
+══════════════════════════════════════════ */
+function renderOrders() {
+  const entries = Object.entries(allOrders || {});
+
+  /* Sort newest first */
+  const active = entries
+    .filter(([, o]) => o.status === 'new')
+    .sort((a, b) => new Date(b[1].placedAt) - new Date(a[1].placedAt));
+
+  const done = entries
+    .filter(([, o]) => o.status === 'done')
+    .sort((a, b) => new Date(b[1].placedAt) - new Date(a[1].placedAt));
+
+  const ag = document.getElementById('kActive');
+  const dg = document.getElementById('kDone');
+
+  ag.innerHTML = !active.length
+    ? `<div class="k-empty">
+         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+         <p>No active orders</p>
+         <small>New orders will appear here instantly</small>
+       </div>`
+    : active.map(([key, o]) => kCard(key, o, 'new')).join('');
+
+  dg.innerHTML = !done.length
+    ? `<p style="color:rgba(255,255,255,.18);font-size:13px;padding:4px 0;">
+         No completed orders yet.
+       </p>`
+    : done.map(([key, o]) => kCard(key, o, 'done')).join('');
+}
+
+function kCard(key, o, status) {
+  const init = o.customer.name
+    .split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+
+  const items = o.items.map(i => `
+    <div class="k-item">
+      <span class="k-item-n">${i.name}</span>
+      <span class="k-item-q">&times;${i.qty}</span>
+      <span class="k-item-p">&#8377;${i.price * i.qty}</span>
+    </div>`).join('');
+
+  const actionBtn = status === 'new'
+    ? `<button class="k-btn-done"
+         onclick="event.stopPropagation();markDone('${key}')">
+         Mark Complete
+       </button>`
+    : `<button class="k-btn-done" disabled>Completed</button>`;
+
+  return `
+    <div class="k-card${status === 'done' ? ' done' : ''}"
+         onclick="viewOrder('${key}')">
+      <div class="k-card-h">
+        <div>
+          <div class="k-oid">${o.id}</div>
+          <div class="k-time">${o.time}</div>
+        </div>
+        <div class="k-badge ${status}">${status === 'new' ? 'New' : 'Done'}</div>
+      </div>
+      <div class="k-cust">
+        <div class="k-av">${init}</div>
+        <div>
+          <div class="k-cname">${o.customer.name}</div>
+          <div class="k-cph">${o.customer.phone}</div>
+        </div>
+      </div>
+      <div class="k-items">${items}</div>
+      <div class="k-total">
+        <span>Total</span>
+        <span class="k-total-a">&#8377;${o.total}</span>
+      </div>
+      <div class="k-acts">
+        ${actionBtn}
+        <button class="k-btn-view"
+          onclick="event.stopPropagation();viewOrder('${key}')">
+          Details
+        </button>
+      </div>
+    </div>`;
+}
+
+/* ══════════════════════════════════════════
+   MARK AS DONE
+══════════════════════════════════════════ */
+function markDone(key) {
+  fetch(`${FB}/orders/${key}.json`, {
+    method:  'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ status: 'done' })
+  })
+  .then(() => toast('\u2705 Order marked complete'))
+  .catch(() => toast('Update failed \u2014 check connection'));
+}
+
+/* ══════════════════════════════════════════
+   ORDER DETAIL MODAL
+══════════════════════════════════════════ */
+function viewOrder(key) {
+  const o = allOrders[key];
+  if (!o) return;
+
+  const itemRows = o.items.map(i => `
+    <div style="display:flex;justify-content:space-between;
+                padding:7px 0;border-bottom:1px solid rgba(255,255,255,.06)">
+      <span>${i.name} &times;${i.qty}</span>
+      <span style="color:var(--a);font-family:'DM Mono',monospace">&#8377;${i.price * i.qty}</span>
+    </div>`).join('');
+
+  const completeBtn = o.status === 'new'
+    ? `<button class="k-btn-done" style="width:100%;margin-top:8px"
+         onclick="markDone('${key}');closeDetModal()">
+         Mark as Complete
+       </button>`
+    : '';
+
+  document.getElementById('kDetPanel').innerHTML = `
+    <div class="k-det-h">
+      <div class="k-det-title">${o.id}</div>
+      <button class="k-det-x" onclick="closeDetModal()">&times;</button>
+    </div>
+    <div class="k-det-s">
+      <div class="k-det-l">Customer</div>
+      <div class="k-det-v">
+        ${o.customer.name}<br>
+        +91 ${o.customer.phone}<br>
+        ${o.customer.address}
+      </div>
+    </div>
+    <div class="k-det-s">
+      <div class="k-det-l">Order Items</div>
+      <div class="k-det-v">
+        ${itemRows}
+        <div style="display:flex;justify-content:space-between;
+                    padding:8px 0 3px;font-size:12px;color:rgba(255,255,255,.35)">
+          <span>Subtotal</span>
+          <span style="font-family:'DM Mono',monospace">&#8377;${o.subtotal}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;
+                    padding:3px 0;font-size:12px;color:rgba(255,255,255,.35)">
+          <span>GST (5%)</span>
+          <span style="font-family:'DM Mono',monospace">&#8377;${o.cgst + o.sgst}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;
+                    padding:10px 0 0;font-weight:700;font-size:16px;color:#fff;
+                    border-top:1px solid rgba(255,255,255,.1);margin-top:6px">
+          <span>Total</span>
+          <span style="color:var(--a);font-family:'DM Mono',monospace">&#8377;${o.total}</span>
+        </div>
+      </div>
+    </div>
+    <div class="k-det-s">
+      <div class="k-det-l">Placed At</div>
+      <div class="k-det-v">${o.time}</div>
+    </div>
+    ${completeBtn}`;
+
+  document.getElementById('kDetOv').classList.add('on');
+}
+
+function closeDetModal(e) {
+  if (!e || e.target.id === 'kDetOv') {
+    document.getElementById('kDetOv').classList.remove('on');
+  }
+}
+
+/* ══════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════ */
+let tTimer;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(tTimer);
+  tTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+</script>
+</body>
+</html>

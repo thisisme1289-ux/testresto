@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+
+  <url>
+    <loc>https://annamay.in/</loc>
+    <lastmod>2026-05-04</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://annamay.in/images/og-cover.jpg</image:loc>
+      <image:title>Annamay Restaurant &amp; Bakery — Pure Veg Food in Prayagraj</image:title>
+      <image:caption>Best vegetarian restaurant in Shantipuram, Phaphamau, Prayagraj, Uttar Pradesh</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://annamay.in/images/restaurant-1.jpg</image:loc>
+      <image:title>Annamay Restaurant Interior — Prayagraj</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://annamay.in/images/restaurant-2.jpg</image:loc>
+      <image:title>Fresh Ingredients at Annamay Bakery Prayagraj</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://annamay.in/images/restaurant-3.jpg</image:loc>
+      <image:title>Dining Area at Annamay Restaurant Phaphamau</image:title>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://annamay.in/#menu</loc>
+    <lastmod>2026-05-04</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <url>
+    <loc>https://annamay.in/#locationSec</loc>
+    <lastmod>2026-05-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+</urlset>

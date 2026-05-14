@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+# Kitchen monitor is password-gated in JS (initRoute in app.js).
+# We also block it here so it is never crawled or indexed.
+Disallow: /?view=kitchen
+
+User-agent: Googlebot
+Allow: /
+Disallow: /?view=kitchen
+
+Sitemap: https://annamay.in/sitemap.xml

@@ -1,0 +1,206 @@
+/* ═══════════════════════════════════════════
+   RADIAL WHEEL SYSTEM — CONVEYOR BELT
+═══════════════════════════════════════════ */
+
+.whl-sec{
+  padding:80px 0 0;
+  background:#e9f5f0;
+}
+.whl-hdr{text-align:center;padding:0 24px 48px;}
+
+.whl-wrap{
+  position:relative;
+  overflow:hidden;
+  margin:0 auto;
+}
+
+.whl-table{
+  position:absolute;
+  border-radius:50%;
+  background:radial-gradient(circle at 50% 42%,
+    rgba(43,191,155,.28) 0%,
+    rgba(43,191,155,.16) 35%,
+    rgba(43,191,155,.06) 60%,
+    transparent 75%
+  );
+  pointer-events:none;
+}
+
+.whl-spotlight{
+  position:absolute;
+  border-radius:50%;
+  pointer-events:none;
+  z-index:15;
+  background:transparent;
+  box-shadow:
+    0 0 0 4px rgba(43,191,155,.9),
+    0 0 0 10px rgba(43,191,155,.35),
+    0 0 0 20px rgba(43,191,155,.12),
+    0 0 40px rgba(43,191,155,.25);
+  animation:spotPulse 2.4s ease-in-out infinite;
+}
+@keyframes spotPulse{
+  0%,100%{
+    box-shadow:0 0 0 4px rgba(43,191,155,.9),0 0 0 10px rgba(43,191,155,.35),
+               0 0 0 20px rgba(43,191,155,.12),0 0 40px rgba(43,191,155,.25);
+  }
+  50%{
+    box-shadow:0 0 0 4px rgba(43,191,155,1),0 0 0 14px rgba(43,191,155,.45),
+               0 0 0 28px rgba(43,191,155,.18),0 0 60px rgba(43,191,155,.35);
+  }
+}
+
+.whl-rotor{
+  position:absolute;
+  border-radius:50%;
+  will-change:transform;
+  /* transition is set dynamically by JS — never set one here */
+}
+
+.whl-node{
+  position:absolute;
+  border-radius:50%;
+  cursor:pointer;
+  transition:opacity .35s ease;
+}
+
+.whl-node-face{
+  width:100%;height:100%;
+  border-radius:50%;overflow:hidden;
+  border:3px solid rgba(255,255,255,.8);
+  box-shadow:0 4px 20px rgba(0,0,0,.18);
+  background:#e8e4dc;
+  /* JS sets transform transition during spin — don't add one here */
+}
+.whl-node-face img{
+  width:100%;height:100%;object-fit:cover;display:block;
+}
+
+.whl-node.active{z-index:20;}
+.whl-node.active .whl-node-face{
+  box-shadow:0 8px 28px rgba(0,0,0,.22);
+  border-color:rgba(255,255,255,1);
+  border-width:4px;
+}
+.whl-node:not(.active){opacity:.55;}
+.whl-node:not(.active):hover{opacity:.85;}
+.whl-node:not(.active):hover .whl-node-face{transform:scale(1.06);}
+.whl-node.partial{opacity:0;pointer-events:none;}
+
+.whl-node-label{
+  position:absolute;
+  top:calc(100% + 8px);left:50%;
+  white-space:nowrap;font-size:9px;font-weight:700;letter-spacing:.5px;
+  background:rgba(255,255,255,.96);color:var(--p);
+  padding:3px 10px;border-radius:50px;box-shadow:var(--sh-sm);
+  opacity:0;pointer-events:none;
+  transition:opacity .25s;
+}
+.whl-node.active .whl-node-label{opacity:1;}
+.whl-node:not(.partial):hover .whl-node-label{opacity:1;}
+
+/* ── INFO CARD ── */
+.whl-card-wrap{
+  display:flex;justify-content:center;
+  padding:0 20px 48px;
+  position:relative;z-index:10;
+  margin-top:-60px;
+}
+
+.whl-card{
+  background:rgba(255,255,255,.98);
+  backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);
+  border:1.5px solid rgba(255,255,255,.75);
+  border-radius:28px;
+  padding:36px 32px 32px;
+  box-shadow:0 24px 64px rgba(0,0,0,.16),0 6px 18px rgba(0,0,0,.08);
+  width:min(340px, calc(100vw - 40px));
+  cursor:pointer;text-align:center;
+  transition:transform .22s var(--spring),box-shadow .22s,opacity .3s;
+}
+.whl-card.empty{opacity:0;pointer-events:none;transform:translateY(8px);}
+.whl-card:hover{transform:translateY(-5px);box-shadow:0 32px 72px rgba(0,0,0,.2);}
+.whl-card:active{transform:scale(.97);}
+
+/* Thumbnail fades with the rest of the card */
+.whl-card-thumb{
+  width:140px;height:140px;border-radius:50%;overflow:hidden;
+  margin:0 auto 20px;
+  border:4px solid var(--a);
+  box-shadow:0 0 0 8px rgba(43,191,155,.15),0 8px 28px rgba(43,191,155,.2);
+  transition:opacity .28s ease;
+}
+.whl-card-thumb img{
+  width:100%;height:100%;object-fit:cover;
+  transition:transform .4s ease, opacity .28s ease;
+}
+.whl-card:hover .whl-card-thumb img{transform:scale(1.1);}
+
+/* Text fields — 280 ms fade (was 140 ms, felt like a blink) */
+.whl-card-cat{
+  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;
+  color:var(--a);margin-bottom:8px;
+  transition:opacity .28s ease, transform .28s ease;
+}
+.whl-card-name{
+  font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:700;
+  color:var(--ink);line-height:1.2;margin-bottom:8px;
+  transition:opacity .28s ease, transform .28s ease;
+}
+.whl-card-price{
+  font-family:'DM Mono',monospace;font-size:22px;font-weight:500;
+  color:var(--p);margin-bottom:18px;
+  transition:opacity .28s ease, transform .28s ease;
+}
+
+/* Fading state: thumbnail + all text go invisible together */
+.whl-card-inner.fading .whl-card-thumb{opacity:0;}
+.whl-card-inner.fading .whl-card-cat,
+.whl-card-inner.fading .whl-card-name,
+.whl-card-inner.fading .whl-card-price{opacity:0;transform:translateY(6px);}
+
+.whl-add-btn{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:14px 32px;border-radius:50px;border:none;
+  width:100%;justify-content:center;
+  background:linear-gradient(135deg,var(--p),var(--a));
+  color:#fff;font-size:15px;font-weight:700;
+  box-shadow:var(--sh-g);
+  transition:transform .2s var(--spring),box-shadow .2s;
+}
+.whl-add-btn:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 12px 28px rgba(31,122,99,.42);}
+.whl-add-btn:active{transform:scale(.94);}
+.whl-add-btn svg{width:15px;height:15px;stroke:#fff;fill:none;stroke-width:2.5;}
+
+/* ── ARROWS ── */
+.whl-arr{
+  width:48px;height:48px;border-radius:50%;
+  border:1.5px solid var(--border);background:var(--card);color:var(--p);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  box-shadow:var(--sh-sm);transition:all .2s var(--ease);cursor:pointer;
+}
+.whl-arr svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;}
+.whl-arr:hover{background:var(--p);border-color:var(--p);color:#fff;box-shadow:var(--sh-g);transform:scale(1.1);}
+.whl-arr:active{transform:scale(.9);}
+
+/* ── BOTTOM LAYOUT ── */
+.whl-bottom{display:flex;flex-direction:column;align-items:center;}
+.whl-arr-left,.whl-arr-right{display:none;}
+.whl-arrows-mobile{display:flex;justify-content:center;gap:14px;padding:0 0 16px;}
+
+@media(min-width:768px){
+  .whl-bottom{
+    flex-direction:row;justify-content:center;align-items:center;
+    gap:28px;padding:0 40px 48px;
+  }
+  .whl-arr-left,.whl-arr-right{display:flex;width:52px;height:52px;}
+  .whl-arrows-mobile{display:none;}
+  .whl-bottom .whl-card-wrap{padding:0;}
+}
+
+/* ── MENU PAGE WHEEL WRAPPER ── */
+.mcat-wrap{margin-bottom:60px;}
+.mcat-hdr{display:flex;align-items:center;gap:14px;margin-bottom:24px;}
+.mcat-title{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:700;white-space:nowrap;}
+.mcat-line{flex:1;height:1px;background:linear-gradient(90deg,var(--border),transparent);}
+.mcat-count{font-size:11px;color:var(--muted);font-weight:600;background:var(--card);border-radius:50px;padding:3px 12px;border:1px solid var(--border);white-space:nowrap;}
